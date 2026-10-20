@@ -3,14 +3,15 @@ import { SITE_NAME } from "@/lib/constants";
 import { Logo } from "./Logo";
 
 const COLUMNS: [string, [string, string][]][] = [
-  ["Members", [["/register", "Register free"], ["/login", "Member login"], ["/search", "Search profiles"]]],
+  ["Members", [["/register", "Register free"], ["/login", "Member login"], ["/search", "Search profiles"], ["/upgrade", "Premium membership"]]],
+  ["Community", [["/stories", "Success stories"], ["/events", "Events"], ["/faq", "FAQ"], ["/support", "Help & support"]]],
   ["Trust & safety", [["/safety", "Safety guidelines"], ["/#verification", "How we verify"], ["/#privacy", "Your privacy"]]],
 ];
 
 export function Footer() {
   return (
     <footer className="mt-12 bg-maroon-dark text-white/75">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
         <div>
           <Logo light />
           <p className="mt-5 max-w-sm text-sm leading-relaxed">

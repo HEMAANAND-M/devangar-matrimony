@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { completeDemoPayment, confirmRazorpayPayment, startCheckout } from "@/app/actions/payments";
+import { completeDemoPayment, confirmRazorpayPayment, reportCheckoutFailure, startCheckout } from "@/app/actions/payments";
 
 type RazorpayResponse = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
-type RazorpayCtor = new (options: Record<string, unknown>) => { open: () => void; on: (e: string, cb: () => void) => void };
+type RazorpayFailure = { error?: { description?: string; reason?: string } };
+type RazorpayCtor = new (options: Record<string, unknown>) => { open: () => void; on: (e: string, cb: (r: RazorpayFailure) => void) => void };
 declare global {
   interface Window {
     Razorpay?: RazorpayCtor;
@@ -24,7 +25,7 @@ function loadRazorpay(): Promise<RazorpayCtor> {
   });
 }
 
-export function CheckoutButton({ planId, label, featured }: { planId: string; label: string; featured?: boolean }) {
+export function CheckoutButton({ planId, label, featured, couponCode }: { planId: string; label: string; featured?: boolean; couponCode?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function CheckoutButton({ planId, label, featured }: { planId: string; la
   const begin = () =>
     startTransition(async () => {
       setError(null);
-      const start = await startCheckout(planId);
+      const start = await startCheckout(planId, couponCode);
       if (start.kind === "error") return setError(start.error);
       if (start.kind === "demo") return setDemo(start);
       try {
@@ -61,7 +62,10 @@ export function CheckoutButton({ planId, label, featured }: { planId: string; la
               finish(await confirmRazorpayPayment({ orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature })),
             ),
         });
-        rzp.on("payment.failed", () => setError("Payment failed. No money was taken; please try again."));
+        rzp.on("payment.failed", (r) => {
+          setError("Payment failed. No money was taken; please try again.");
+          void reportCheckoutFailure(start.orderId, r.error?.description ?? r.error?.reason ?? "");
+        });
         rzp.open();
       } catch (e) {
         setError((e as Error).message);

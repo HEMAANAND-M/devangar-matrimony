@@ -63,3 +63,37 @@ export function SelectField({
     </Label>
   );
 }
+
+/** Checkboxes sharing one name, submitted as a list (read with formData.getAll). */
+export function CheckboxGroup({
+  label,
+  name,
+  options,
+  defaultValues = [],
+  hint,
+  columns = 3,
+}: {
+  label: string;
+  name: string;
+  options: string[] | Record<string, string>;
+  defaultValues?: string[];
+  hint?: string;
+  columns?: 2 | 3 | 4;
+}) {
+  const entries = Array.isArray(options) ? options.map((o) => [o, o] as const) : Object.entries(options);
+  const cols = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4" }[columns];
+  return (
+    <fieldset>
+      <legend className="text-[0.8rem] font-medium tracking-wide text-stone-600">{label}</legend>
+      <div className={`mt-2 grid grid-cols-2 gap-x-4 gap-y-2 ${cols}`}>
+        {entries.map(([value, text]) => (
+          <label key={value} className="flex min-w-0 items-center gap-2 text-sm text-stone-700">
+            <input type="checkbox" name={name} value={value} defaultChecked={defaultValues.includes(value)} className="h-4 w-4 shrink-0 accent-maroon" />
+            <span className="truncate">{text}</span>
+          </label>
+        ))}
+      </div>
+      {hint && <p className="mt-1.5 text-xs text-stone-500">{hint}</p>}
+    </fieldset>
+  );
+}

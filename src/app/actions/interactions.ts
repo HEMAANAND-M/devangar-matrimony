@@ -1,7 +1,9 @@
 "use server";
 
+import type { ReportCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { REPORT_CATEGORY_LABELS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { type FormState, str } from "@/lib/form";
 import { findContactInfo } from "@/lib/moderation";
@@ -95,7 +97,11 @@ export async function reportProfile(targetId: string, _: FormState, fd: FormData
   if (!(await db.profile.findUnique({ where: { id: targetId }, select: { id: true } }))) {
     return { error: "This profile is not available." };
   }
-  await db.report.create({ data: { reporterId: profile.id, targetId, reason: reason.slice(0, 1000) } });
+  const category = str(fd, "category");
+  const parsed = Object.hasOwn(REPORT_CATEGORY_LABELS, category) ? (category as ReportCategory) : "OTHER";
+  // Safety issues jump the moderation queue.
+  const priority = parsed === "HARASSMENT" || parsed === "ASKED_FOR_MONEY" ? 1 : 2;
+  await db.report.create({ data: { reporterId: profile.id, targetId, reason: reason.slice(0, 1000), category: parsed, priority } });
   return { message: "Thank you. Our team will review this profile." };
 }
 

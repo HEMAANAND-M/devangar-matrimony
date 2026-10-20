@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DotPattern, Mandala, SectionTitle } from "@/components/Ornaments";
+import { getTestimonials } from "@/lib/content";
 import { getCurrentUser } from "@/lib/session";
 
 const icon = (d: string) => (
@@ -51,6 +52,7 @@ const SEARCH_BY = ["Star & rasi", "Age & height", "Mother tongue", "Dosham", "Ci
 export default async function Home({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   if (await getCurrentUser()) redirect("/dashboard");
   const { deleted } = await searchParams;
+  const testimonials = await getTestimonials();
   return (
     <div className="-mt-10">
       {deleted && (
@@ -191,6 +193,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
           ))}
         </ul>
       </section>
+
+      {/* Testimonials: only real ones added by admins, so the section is absent until then */}
+      {testimonials.length > 0 && (
+        <section className="pb-24">
+          <SectionTitle eyebrow="In their words" title="Families who found their match" />
+          <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {testimonials.slice(0, 6).map((t) => (
+              <figure key={t.names} className="relative flex flex-col rounded-3xl border border-hairline bg-white p-8 shadow-soft">
+                <span className="absolute -top-4 left-8 font-display text-6xl leading-none text-gold" aria-hidden>“</span>
+                <blockquote className="flex-1 pt-2 text-[0.95rem] leading-relaxed text-stone-700">{t.quote}</blockquote>
+                <figcaption className="mt-6 border-t border-hairline pt-4">
+                  <span className="block font-display text-lg font-semibold text-maroon">{t.names}</span>
+                  {t.city && <span className="eyebrow text-gold-dark">{t.city}</span>}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+          <p className="mt-10 text-center">
+            <Link href="/stories" className="text-sm font-medium text-maroon underline decoration-gold/50 underline-offset-4">Read success stories</Link>
+          </p>
+        </section>
+      )}
 
       {/* Closing CTA */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-maroon-dark to-maroon px-6 py-20 text-center text-white shadow-lift">

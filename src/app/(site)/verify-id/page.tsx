@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { submitIdVerification } from "@/app/actions/verification";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { IdVerifiedBadge } from "@/components/Badges";
@@ -5,6 +6,7 @@ import { Card, PageHeader } from "@/components/Card";
 import { SelectField, TextField } from "@/components/fields";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
+import { featureEnabled } from "@/lib/settings";
 
 export const metadata = { title: "Verify your ID" };
 
@@ -18,12 +20,13 @@ const DOC_LABELS: Record<string, string> = {
 
 export default async function VerifyIdPage() {
   const { profile } = await requireProfile();
+  const enabled = await featureEnabled("idVerification");
   const latest = await db.idVerification.findFirst({
-    where: { profileId: profile.id },
+    where: { profileId: profile.id, docType: { not: "SELFIE" } },
     orderBy: { createdAt: "desc" },
     select: { status: true, docType: true, last4: true, rejectionReason: true, createdAt: true },
   });
-  const canSubmit = !profile.idVerifiedAt && latest?.status !== "PENDING";
+  const canSubmit = enabled && !profile.idVerifiedAt && latest?.status !== "PENDING";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -53,6 +56,10 @@ export default async function VerifyIdPage() {
           Your last submission was not accepted: {latest.rejectionReason}. Please upload a clearer copy.
         </p>
       ) : null}
+
+      {!enabled && !profile.idVerifiedAt && (
+        <Card><p className="text-sm text-stone-700">ID verification is paused at the moment. Please check back soon.</p></Card>
+      )}
 
       {canSubmit && (
         <Card title="Upload a government ID">
@@ -101,6 +108,18 @@ export default async function VerifyIdPage() {
           </ActionForm>
         </Card>
       )}
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="font-medium text-ink">Verify your photos too</p>
+            <p className="text-sm text-stone-600">A quick selfie adds the “Photo verified” badge to your profile.</p>
+          </div>
+          <Link href="/verify-photo" className="rounded-full border border-gold/60 px-5 py-2 text-sm font-medium text-maroon transition hover:border-gold hover:bg-gold-light/30">
+            {profile.photoVerifiedAt ? "Photos verified ✓" : "Verify photos"}
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

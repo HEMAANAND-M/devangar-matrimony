@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { changePassword, deleteAccount, setWhatsappOptIn } from "@/app/actions/auth";
 import { cancelFamilyInvite, inviteFamilyMember, leaveManagedProfile, removeFamilyManager } from "@/app/actions/family";
 import { MAX_FAMILY_MANAGERS } from "@/lib/family";
@@ -8,7 +9,11 @@ import { Card, PageHeader } from "@/components/Card";
 import { SignOutButton } from "@/components/SignOutButton";
 import { IdVerifiedBadge, PremiumBadge } from "@/components/Badges";
 import { SelectField, TextField } from "@/components/fields";
+import { NotificationPrefs } from "@/components/NotificationPrefs";
+import { ReferralCard } from "@/components/ReferralCard";
 import { db } from "@/lib/db";
+import { deviceLabel } from "@/lib/devices";
+import { dateTime } from "@/lib/format";
 import { isPremium } from "@/lib/premium";
 import { requireUser } from "@/lib/session";
 
@@ -40,11 +45,20 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         db.familyInvite.findMany({ where: { profileId: user.profile!.id, expiresAt: { gt: new Date() } } }),
       ])
     : [[], []];
+  // Most recent sign-in per browser.
+  const signIns = await db.loginEvent.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    distinct: ["deviceId"],
+    take: 8,
+    select: { id: true, deviceId: true, userAgent: true, createdAt: true },
+  });
+  const thisDevice = (await cookies()).get("dm_device")?.value;
   const linkCls = "text-maroon underline decoration-gold/50 underline-offset-4 hover:decoration-gold";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader eyebrow="Account" title="Settings" subtitle={`Signed in as ${user.phone}`} />
+      <PageHeader eyebrow="Account" title="Settings" subtitle={<span className="break-all">Signed in as {user.phone}</span>} />
       {blocked && (
         <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
           Member blocked. You will no longer see each other.
@@ -107,6 +121,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </form>
       </Card>
 
+      <NotificationPrefs userId={user.id} />
+      <ReferralCard userId={user.id} />
+
       {isOwner && (
         <Card title="Family access">
           <p className="text-sm text-stone-600">
@@ -116,7 +133,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           {(managers.length > 0 || invites.length > 0) && (
             <ul className="mt-4 divide-y divide-hairline rounded-xl border border-hairline">
               {managers.map((m) => (
-                <li key={m.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                   <span>
                     {RELATIONS[m.relation]} · {m.user.phone} <span className="ml-1 text-xs text-emerald-700">active</span>
                   </span>
@@ -126,7 +143,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 </li>
               ))}
               {invites.map((i) => (
-                <li key={i.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                   <span>
                     {RELATIONS[i.relation]} · {i.phone} <span className="ml-1 text-xs text-amber-700">invited</span>
                   </span>
@@ -161,7 +178,23 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       </Card>
 
       <Card title="Devices">
-        <p className="text-sm text-stone-600">Signed in on a shared or lost phone? Sign out everywhere, including this device.</p>
+        {signIns.length > 0 && (
+          <>
+            <p className="eyebrow mb-2 text-gold-dark">Recent sign-ins</p>
+            <ul className="mb-5 divide-y divide-hairline rounded-xl border border-hairline">
+              {signIns.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                  <span className="min-w-0 font-medium text-ink">
+                    {deviceLabel(e.userAgent)}
+                    {e.deviceId === thisDevice && <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-normal text-emerald-800">This device</span>}
+                  </span>
+                  <span className="text-xs text-stone-500">{dateTime(e.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        <p className="text-sm text-stone-600">Don’t recognise a device, or signed in on a shared or lost phone? Sign out everywhere, including this device, then change your password.</p>
         <div className="mt-4">
           <SignOutButton everywhere className="rounded-full border border-gold/60 px-5 py-2.5 text-sm text-maroon transition hover:bg-gold-light/30">
             Log out of all devices
@@ -173,7 +206,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {blocks.length ? (
           <ul className="divide-y divide-hairline">
             {blocks.map((b) => (
-              <li key={b.id} className="flex items-center justify-between py-3 text-sm">
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <span>
                   {b.blocked.name} <span className="text-stone-500">· {b.blocked.code}</span>
                 </span>

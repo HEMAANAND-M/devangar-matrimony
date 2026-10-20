@@ -90,15 +90,29 @@ Seeded logins (development only):
 
 Log in with the 10-digit number (e.g. `9000000000`).
 
-### OTP in development
+### OTP and SMS
 
-No SMS provider is wired up yet. The OTP is printed in the terminal running `npm run dev`:
+In development the OTP is printed in the terminal running `npm run dev`:
 
 ```
 [OTP] +919876543210: 123456
 ```
 
-To send real SMS, implement `deliverSms` in `src/lib/otp.ts` (MSG91, Twilio, Fast2SMS…) and set `SMS_PROVIDER`. Production refuses to send OTPs until this is configured.
+For real SMS set `SMS_PROVIDER`:
+
+| Provider | Settings |
+| --- | --- |
+| `msg91` (recommended in India) | `MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID`: a DLT-approved OTP flow template whose variable is `otp` |
+| `twilio` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` |
+| `console` | Prints codes to the log. Refused in production unless `ALLOW_CONSOLE_SMS=true` (for a demo deployment only) |
+
+Production refuses to send codes until a provider is configured. If an SMS fails, members see a friendly error and can retry straight away.
+
+### Staff sign-in
+
+Admins and moderators sign in with their password **and** an SMS code (`/login/staff`), and are signed out after 30 minutes without activity. For a local demo you can skip the code with `STAFF_2FA=off`; never set that on a public deployment.
+
+Suspended and banned members (set from Admin → Members) cannot sign in; any open session stops working immediately, and the login page shows the reason. Suspensions with an end date lift themselves.
 
 ## Payments, WhatsApp and scheduled jobs
 
@@ -107,7 +121,7 @@ To send real SMS, implement `deliverSms` in `src/lib/otp.ts` (MSG91, Twilio, Fas
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay Dashboard → Account & Settings → API Keys (use Test keys first) |
 | `RAZORPAY_WEBHOOK_SECRET` | Razorpay Dashboard → Webhooks → add `https://<your-domain>/api/razorpay/webhook` with events `order.paid`, `payment.captured`, `payment.failed` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Meta for Developers → WhatsApp → API Setup (use a permanent System User token in production) |
-| `CRON_SECRET` | Any long random string; `vercel.json` runs `/api/cron/weekly` every Monday 09:00 IST |
+| `CRON_SECRET` | Any long random string; `vercel.json` runs `/api/cron/weekly` every Monday 09:00 IST and `/api/cron/cleanup` daily at 02:30 IST |
 
 Plan prices live in `src/lib/premium.ts`.
 
@@ -122,6 +136,42 @@ Create these WhatsApp message templates (category **Utility**, language **Englis
 
 Until WhatsApp is configured, messages are recorded with status "not configured" and visible to admins.
 
+## Operations
+
+### Scheduled jobs
+
+| Job | Schedule | What it does |
+| --- | --- | --- |
+| `/api/cron/weekly` | Monday 09:00 IST | WhatsApp weekly-matches digest; expires ID documents nobody reviewed within 30 days |
+| `/api/cron/cleanup` | Daily 02:30 IST | Deletes accounts that never verified their number within 7 days (and have no profile), expired codes, old rate-limit windows, and sign-in history older than 180 days |
+
+Both need `Authorization: Bearer $CRON_SECRET`; Vercel Cron sends it automatically. To run one by hand: `curl -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/cleanup`.
+
+### Photo storage
+
+Photos are stored in the database by default, which is fine for a few thousand members. To move them to [Vercel Blob](https://vercel.com/docs/storage/vercel-blob), create a Blob store in the Vercel project. That sets `BLOB_READ_WRITE_TOKEN`, and new uploads go to Blob. Older photos keep being served from the database.
+
+Every photo is still served through `/api/photos/[id]` with the same access checks. The blob path is derived from the photo id with a server secret, so it can't be guessed. Keep `PHOTO_STORAGE_KEY` (or `SESSION_SECRET`, if that key isn't set) stable, or existing blob photos can no longer be found.
+
+### Backups
+
+Neon and most managed Postgres hosts keep point-in-time backups. Keep your own daily copy as well:
+
+```bash
+DATABASE_URL=postgresql://... scripts/backup.sh            # Linux/macOS: writes backups/devangar-YYYYMMDD-HHMMSS.sql.gz
+```
+
+```powershell
+$env:DATABASE_URL = "postgresql://..."; .\scripts\backup.ps1   # Windows
+```
+
+Each run keeps the newest 14 copies. Schedule it with cron or Task Scheduler and copy the folder off the server. To restore: `gunzip -c backups/devangar-….sql.gz | psql "$DATABASE_URL"`.
+
+### Monitoring
+
+- **Uptime:** point UptimeRobot or Better Stack at `https://<your-domain>/api/health`. It answers `200 {"ok":true}` when the app and database are up, and `503` otherwise. A 1–5 minute interval is plenty.
+- **Errors:** every unhandled server error is logged as one JSON line (visible in Vercel → Logs). Set `SENTRY_DSN` to also receive them in Sentry. Only the route, error message and stack are sent, never cookies, headers or member data.
+
 ## Project layout
 
 ```
@@ -135,8 +185,6 @@ src/components/           shared UI
 
 ## Next steps before launch
 
-- Real SMS provider for OTP (MSG91, Twilio, Fast2SMS…)
-- In-app chat between connected members
-- Email/SMS notifications for new interests
-- Object storage (S3/R2) for photos once the member base grows
+- Configure an SMS provider (MSG91 DLT template registration takes a few days)
+- Create a Vercel Blob store once the member base grows
 - Terms of service, privacy policy and compliance with India's DPDP Act 2023

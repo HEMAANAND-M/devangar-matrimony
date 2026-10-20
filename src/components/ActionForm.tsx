@@ -29,6 +29,9 @@ export function ActionForm({
   }, {});
   return (
     <form
+      // If it is submitted before the page's scripts load, the browser falls back to a native
+      // submit; POST keeps passwords and codes out of the URL, history and server logs.
+      method="post"
       className={className}
       onSubmit={(e) => {
         e.preventDefault();

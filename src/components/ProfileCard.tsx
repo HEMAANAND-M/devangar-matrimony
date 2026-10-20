@@ -1,15 +1,20 @@
 import Link from "next/link";
 import type { Photo, Profile } from "@prisma/client";
 import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
+import { type MatchProfile, matchScore } from "@/lib/match";
 import { isPremium } from "@/lib/premium";
-import { IdVerifiedBadge, PremiumBadge } from "./Badges";
+import { ActiveIndicator, IdVerifiedBadge, MatchBadge, PhotoVerifiedBadge, PremiumBadge } from "./Badges";
 
-export type CardProfile = Profile & { photos: Photo[] };
+export type CardProfile = Profile & { photos: Photo[]; user?: { lastActiveAt: Date | null } };
 
 const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000;
 
-/** `photo` is the primary photo the viewer may see, already access-checked. */
-export function ProfileCard({ profile, photo }: { profile: CardProfile; photo?: Photo }) {
+/**
+ * `photo` is the primary photo the viewer may see, already access-checked. Pass `viewer` to show
+ * a match score.
+ */
+export function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; photo?: Photo; viewer?: MatchProfile }) {
+  const match = viewer ? matchScore(viewer, profile) : null;
   const isNew = Date.now() - profile.createdAt.getTime() < NEW_FOR_MS;
   const photoHidden = !photo && profile.photos.some((ph) => ph.approved);
   const height = profile.heightCm ? heightLabel(profile.heightCm)?.split(" (")[0] : null;
@@ -61,10 +66,12 @@ export function ProfileCard({ profile, photo }: { profile: CardProfile; photo?: 
       <div className="p-4">
         <p className="font-display text-xl font-semibold leading-tight text-ink transition group-hover:text-maroon">{profile.name}</p>
         <p className="mt-0.5 text-xs tracking-wide text-gold-dark">{profile.code}</p>
-        {(isPremium(profile) || profile.idVerifiedAt) && (
+        {(match || isPremium(profile) || profile.idVerifiedAt || profile.photoVerifiedAt) && (
           <div className="mt-2 flex flex-wrap gap-1.5">
+            {match && <MatchBadge score={match.score} small />}
             {isPremium(profile) && <PremiumBadge small />}
             {profile.idVerifiedAt && <IdVerifiedBadge small />}
+            {profile.photoVerifiedAt && <PhotoVerifiedBadge small />}
           </div>
         )}
         <div className="my-3 h-px bg-hairline" />
@@ -74,6 +81,7 @@ export function ProfileCard({ profile, photo }: { profile: CardProfile; photo?: 
         </p>
         <p className="mt-1 truncate text-sm text-stone-500">{profile.occupation}</p>
         <p className="mt-1 truncate text-sm text-stone-500">{profile.city}</p>
+        <ActiveIndicator lastActiveAt={profile.user?.lastActiveAt} className="mt-2" />
       </div>
     </Link>
   );

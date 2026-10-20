@@ -1,6 +1,7 @@
 import { isBlocked, isConnected, visiblePhotos } from "@/lib/access";
 import { db } from "@/lib/db";
 import { getCurrentUser, isStaff } from "@/lib/session";
+import { getPhoto } from "@/lib/storage";
 
 const NOT_FOUND = () => new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
 
@@ -43,10 +44,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   };
   if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
 
-  // Select only the rendition being served; the other may be several hundred KB.
-  const bytes = thumb
-    ? (await db.photoBlob.findUnique({ where: { photoId: id }, select: { thumb: true } }))?.thumb
-    : (await db.photoBlob.findUnique({ where: { photoId: id }, select: { full: true } }))?.full;
+  const bytes = await getPhoto(id, thumb ? "thumb" : "full");
   if (!bytes) return NOT_FOUND();
   return new Response(new Uint8Array(bytes), { headers });
 }

@@ -1,246 +1,244 @@
 import Link from "next/link";
-import {
-  addModerator, approvePhoto, approveProfile, rejectPhoto, rejectProfile, removeModerator, resolveReport,
-} from "@/app/actions/admin";
-import { reviewIdVerification } from "@/app/actions/verification";
-import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { Card, PageHeader } from "@/components/Card";
-import { TextField } from "@/components/fields";
+import { Prisma } from "@prisma/client";
+import { BarList, DailyBars, GenderSplit, type DayPoint } from "@/components/admin/charts";
+import { AdminPageHeader, Badge, Panel, StatCard, label, statusTone } from "@/components/admin/ui";
+import { MARITAL_STATUS_LABELS } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { ageFrom, photoUrl } from "@/lib/format";
-import { whatsappConfigured } from "@/lib/notify";
-import { PLANS, rupees } from "@/lib/premium";
-import { razorpayConfigured } from "@/lib/razorpay";
+import { dateTime } from "@/lib/format";
+import { rupees } from "@/lib/premium";
 import { requireStaff } from "@/lib/session";
+import { actionLabel } from "./activity/labels";
 
-export const metadata = { title: "Admin" };
+export const metadata = { title: "Dashboard" };
 
-const when = (d: Date) => d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+const DAY = 24 * 60 * 60 * 1000;
+const IST = 5.5 * 60 * 60 * 1000;
+const DAYS = 30;
 
-export default async function AdminPage() {
+/** Day buckets in India time, oldest first, with empty days filled in. */
+function fillDays(rows: { day: Date; value: bigint | number | null }[], days: number): DayPoint[] {
+  const byDay = new Map(rows.map((r) => [r.day.toISOString().slice(0, 10), Number(r.value ?? 0)]));
+  const today = Date.now() + IST;
+  return Array.from({ length: days }, (_, i) => {
+    const key = new Date(today - (days - 1 - i) * DAY).toISOString().slice(0, 10);
+    return { day: key, value: byDay.get(key) ?? 0 };
+  });
+}
+
+const perDay = (table: "User" | "Interest", since: Date) =>
+  db.$queryRaw<{ day: Date; value: bigint }[]>`
+    SELECT date_trunc('day', "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') AS day, count(*) AS value
+    FROM ${Prisma.raw(`"${table}"`)} WHERE "createdAt" >= ${since} GROUP BY 1`;
+
+function waited(since: Date): string {
+  const hours = Math.floor((Date.now() - since.getTime()) / (60 * 60 * 1000));
+  if (hours < 1) return "under an hour";
+  if (hours < 48) return `${hours} h`;
+  return `${Math.floor(hours / 24)} days`;
+}
+
+export default async function AdminOverview() {
   const staff = await requireStaff();
   const isAdmin = staff.role === "ADMIN";
+  const now = new Date();
+  const startOfToday = new Date(`${new Date(now.getTime() + IST).toISOString().slice(0, 10)}T00:00:00+05:30`);
+  const week = new Date(now.getTime() - 7 * DAY);
+  const since = new Date(startOfToday.getTime() - (DAYS - 1) * DAY);
 
-  const [pendingProfiles, pendingPhotos, reports, stats] = await Promise.all([
-    db.profile.findMany({ where: { status: "PENDING" }, include: { user: { select: { phone: true } } }, orderBy: { updatedAt: "asc" }, take: 50 }),
-    db.photo.findMany({ where: { approved: false }, include: { profile: { select: { code: true, name: true } } }, orderBy: { createdAt: "asc" }, take: 60 }),
-    db.report.findMany({ where: { resolved: false }, include: { reporter: true, target: true }, orderBy: { createdAt: "asc" } }),
-    db.profile.groupBy({ by: ["status"], _count: true }),
+  const [
+    totalMembers, liveProfiles, signupsToday, signups7, interests7, accepted7, queues,
+    signupSeries, interestSeries, genders, marital, cityGender, ageBands, recentSignups,
+  ] = await Promise.all([
+    db.user.count({ where: { role: "USER" } }),
+    db.profile.count({ where: { status: "APPROVED" } }),
+    db.user.count({ where: { role: "USER", createdAt: { gte: startOfToday } } }),
+    db.user.count({ where: { role: "USER", createdAt: { gte: week } } }),
+    db.interest.count({ where: { createdAt: { gte: week } } }),
+    db.interest.count({ where: { status: "ACCEPTED", updatedAt: { gte: week } } }),
+    Promise.all([
+      Promise.all([
+        db.profile.count({ where: { status: "PENDING" } }),
+        db.profile.findFirst({ where: { status: "PENDING" }, orderBy: { updatedAt: "asc" }, select: { updatedAt: true } }).then((r) => r?.updatedAt),
+      ]),
+      Promise.all([
+        db.photo.count({ where: { approved: false } }),
+        db.photo.findFirst({ where: { approved: false }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }).then((r) => r?.createdAt),
+      ]),
+      Promise.all([
+        db.report.count({ where: { resolved: false } }),
+        db.report.findFirst({ where: { resolved: false }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }).then((r) => r?.createdAt),
+      ]),
+      // Moderators review selfies only; ID documents are admin-only.
+      Promise.all([
+        db.idVerification.count({ where: { status: "PENDING", ...(isAdmin ? {} : { docType: "SELFIE" as const }) } }),
+        db.idVerification
+          .findFirst({ where: { status: "PENDING", ...(isAdmin ? {} : { docType: "SELFIE" as const }) }, orderBy: { createdAt: "asc" }, select: { createdAt: true } })
+          .then((r) => r?.createdAt),
+      ]),
+      Promise.all([
+        db.supportTicket.count({ where: { status: "OPEN" } }),
+        db.supportTicket.findFirst({ where: { status: "OPEN" }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }).then((r) => r?.createdAt),
+      ]),
+    ]),
+    perDay("User", since),
+    perDay("Interest", since),
+    db.profile.groupBy({ by: ["gender"], where: { status: "APPROVED" }, _count: true }),
+    db.profile.groupBy({ by: ["maritalStatus"], where: { status: "APPROVED" }, _count: true }),
+    db.profile.groupBy({ by: ["city", "gender"], where: { status: "APPROVED" }, _count: true }),
+    db.$queryRaw<{ band: string; value: bigint }[]>`
+      SELECT CASE
+        WHEN a < 25 THEN '18–24' WHEN a < 30 THEN '25–29' WHEN a < 35 THEN '30–34'
+        WHEN a < 40 THEN '35–39' ELSE '40+' END AS band, count(*) AS value
+      FROM (SELECT date_part('year', age("dateOfBirth")) AS a FROM "Profile" WHERE status = 'APPROVED') t
+      GROUP BY 1 ORDER BY 1`,
+    db.user.findMany({
+      where: { role: "USER" },
+      select: { id: true, createdAt: true, phoneVerified: true, profile: { select: { code: true, name: true, status: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
   ]);
 
-  // Admin-only data is not even queried for moderators.
-  const admin = isAdmin
+  // Money and the staff audit trail are not even queried for moderators.
+  const money = isAdmin
     ? await Promise.all([
-        db.idVerification.findMany({
-          where: { status: "PENDING" },
-          select: { id: true, docType: true, last4: true, documentMime: true, createdAt: true, profile: { select: { code: true, name: true } } },
-          orderBy: { createdAt: "asc" },
-        }),
-        db.payment.findMany({ where: { status: "PAID" }, include: { profile: { select: { code: true, name: true } } }, orderBy: { paidAt: "desc" }, take: 15 }),
-        db.payment.aggregate({ where: { status: "PAID", demo: false }, _sum: { amount: true }, _count: true }),
-        db.profile.count({ where: { premiumUntil: { gt: new Date() } } }),
-        db.user.findMany({ where: { role: { in: ["ADMIN", "MODERATOR"] } }, select: { id: true, phone: true, role: true }, orderBy: { role: "asc" } }),
-        db.notification.findMany({ include: { user: { select: { phone: true } } }, orderBy: { createdAt: "desc" }, take: 15 }),
-        db.adminLog.findMany({ include: { admin: { select: { phone: true } } }, orderBy: { createdAt: "desc" }, take: 20 }),
+        db.payment.aggregate({ where: { status: "PAID", demo: false, paidAt: { gte: since } }, _sum: { amount: true }, _count: true }),
+        db.profile.count({ where: { premiumUntil: { gt: now } } }),
+        db.$queryRaw<{ day: Date; value: bigint | null }[]>`
+          SELECT date_trunc('day', "paidAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') AS day, sum(amount) AS value
+          FROM "Payment" WHERE status = 'PAID' AND demo = false AND "paidAt" >= ${since} GROUP BY 1`,
+        db.adminLog.findMany({ include: { admin: { select: { role: true } } }, orderBy: { createdAt: "desc" }, take: 8 }),
       ])
     : null;
 
+  const queueCards = [
+    { href: "/admin/approvals", title: "Profiles to review", q: queues[0] },
+    { href: "/admin/photos", title: "Photos to review", q: queues[1] },
+    { href: "/admin/reports", title: "Open reports", q: queues[2] },
+    { href: "/admin/verifications", title: isAdmin ? "ID & selfie checks" : "Selfie checks", q: queues[3] },
+    { href: "/admin/support", title: "Support tickets", q: queues[4] },
+  ];
+
+  const cities = new Map<string, { city: string; brides: number; grooms: number }>();
+  for (const row of cityGender) {
+    const entry = cities.get(row.city) ?? { city: row.city, brides: 0, grooms: 0 };
+    if (row.gender === "FEMALE") entry.brides += row._count;
+    else entry.grooms += row._count;
+    cities.set(row.city, entry);
+  }
+  const topCities = [...cities.values()].sort((a, b) => b.brides + b.grooms - (a.brides + a.grooms)).slice(0, 8);
+  const brides = genders.find((g) => g.gender === "FEMALE")?._count ?? 0;
+  const grooms = genders.find((g) => g.gender === "MALE")?._count ?? 0;
+  const linkCls = "text-sm text-maroon hover:underline";
+
   return (
-    <div className="space-y-8">
-      <PageHeader eyebrow={isAdmin ? "Administration" : "Moderator"} title={isAdmin ? "Admin" : "Moderation"} />
-      <div className="-mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {stats.map((s) => (
-          <div key={s.status} className="rounded-2xl border border-hairline bg-white p-5 shadow-soft">
-            <p className="eyebrow text-gold-dark">{s.status.toLowerCase()}</p>
-            <p className="mt-1 font-display text-4xl font-semibold text-maroon">{s._count}</p>
-          </div>
-        ))}
+    <div className="space-y-6">
+      <AdminPageHeader
+        title={isAdmin ? "Dashboard" : "Moderation dashboard"}
+        description={`Community health and the work waiting for the team · ${now.toLocaleDateString("en-IN", { dateStyle: "full", timeZone: "Asia/Kolkata" })}`}
+        actions={<Link href="/admin/members" className="rounded-lg border border-hairline bg-white px-3.5 py-2 text-sm font-medium text-ink transition hover:border-gold hover:text-maroon">Find a member</Link>}
+      />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard label="Members" value={totalMembers.toLocaleString("en-IN")} hint={`${signupsToday} joined today · ${signups7} this week`} href="/admin/members" />
+        <StatCard label="Live profiles" value={liveProfiles.toLocaleString("en-IN")} hint={`${brides} brides · ${grooms} grooms`} href="/admin/members?status=APPROVED" />
+        <StatCard label="Interests · 7 days" value={interests7.toLocaleString("en-IN")} hint={`${accepted7} accepted${interests7 ? ` (${Math.round((accepted7 / interests7) * 100)}%)` : ""}`} />
+        {money ? (
+          <StatCard
+            label="Revenue · 30 days"
+            value={rupees(money[0]._sum.amount ?? 0)}
+            hint={`${money[1]} premium · ${liveProfiles ? Math.round((money[1] / liveProfiles) * 100) : 0}% of live profiles`}
+            href="/admin/payments"
+          />
+        ) : (
+          <StatCard label="Waiting for review" value={queues[0][0] + queues[1][0]} hint="Profiles and photos" href="/admin/approvals" tone={queues[0][0] + queues[1][0] ? "attention" : "neutral"} />
+        )}
       </div>
 
-      <Card title={`Profiles awaiting review (${pendingProfiles.length})`}>
-        <div className="divide-y divide-hairline">
-          {pendingProfiles.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-start justify-between gap-4 py-4">
-              <div className="text-sm">
-                <Link href={`/profiles/${p.code}`} className="font-semibold text-maroon hover:underline">{p.name} ({p.code})</Link>
-                <p className="text-stone-600">
-                  {p.gender.toLowerCase()} · {ageFrom(p.dateOfBirth)} yrs · {p.city}
-                  {isAdmin && ` · ${p.user.phone}`}
+      <Panel title="Waiting for the team" description="Oldest item in each queue. Aim to clear everything within a day." flush>
+        <ul className="grid divide-y divide-hairline sm:grid-cols-5 sm:divide-x sm:divide-y-0">
+          {queueCards.map(({ href, title, q: [count, oldest] }) => (
+            <li key={href}>
+              <Link href={href} className="block h-full px-5 py-4 transition hover:bg-cream/60">
+                <p className="text-xs font-medium text-stone-500">{title}</p>
+                <p className={`mt-1.5 text-2xl font-semibold tabular-nums ${count ? "text-maroon" : "text-ink"}`}>{count}</p>
+                <p className="mt-1 text-xs text-stone-500">
+                  {count && oldest ? (
+                    <>Oldest waiting <span className={Date.now() - oldest.getTime() > DAY ? "font-medium text-red-700" : ""}>{waited(oldest)}</span></>
+                  ) : (
+                    "All caught up"
+                  )}
                 </p>
-                <p className="text-stone-600">{p.education} · {p.occupation} · gothram {p.gothram ?? "—"}</p>
-                {p.about && <p className="mt-1 max-w-xl text-stone-700">{p.about}</p>}
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <form action={approveProfile.bind(null, p.id)}>
-                  <button className="rounded-full bg-emerald-700 px-4 py-1.5 text-sm text-white">Approve</button>
-                </form>
-                <ActionForm action={rejectProfile.bind(null, p.id)} className="flex gap-2">
-                  <input name="reason" placeholder="Reason for rejection" className="rounded-lg border border-hairline px-3 py-1.5 text-sm" />
-                  <SubmitButton variant="danger">Reject</SubmitButton>
-                </ActionForm>
-              </div>
-            </div>
+              </Link>
+            </li>
           ))}
-          {!pendingProfiles.length && <p className="text-sm text-stone-600">All caught up.</p>}
+        </ul>
+      </Panel>
+
+      <div className={`grid gap-6 ${money ? "xl:grid-cols-3" : "lg:grid-cols-2"}`}>
+        <Panel><DailyBars data={fillDays(signupSeries, DAYS)} label="New signups" /></Panel>
+        <Panel><DailyBars data={fillDays(interestSeries, DAYS)} label="Interests sent" /></Panel>
+        {money && <Panel><DailyBars data={fillDays(money[2], DAYS)} label="Revenue" format={(v) => rupees(v)} /></Panel>}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Panel title="Brides and grooms by city" description="Live profiles in the eight largest cities, and where one side is short" className="lg:col-span-2">
+          <GenderSplit rows={topCities} />
+        </Panel>
+        <div className="space-y-6">
+          <Panel title="Age of live profiles">
+            <BarList rows={ageBands.map((b) => ({ label: b.band, value: Number(b.value) }))} />
+          </Panel>
+          <Panel title="Marital status">
+            <BarList
+              rows={marital
+                .map((m) => ({ label: MARITAL_STATUS_LABELS[m.maritalStatus] ?? m.maritalStatus, value: m._count }))
+                .sort((a, b) => b.value - a.value)}
+            />
+          </Panel>
         </div>
-      </Card>
+      </div>
 
-      <Card title={`Photos awaiting review (${pendingPhotos.length})`}>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
-          {pendingPhotos.map((ph) => (
-            <div key={ph.id} className="overflow-hidden rounded-md border border-hairline text-xs">
-              {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-              <img src={photoUrl(ph.id, "thumb")} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover" />
-              <p className="truncate px-2 pt-1">{ph.profile.name} ({ph.profile.code})</p>
-              <div className="flex justify-between p-2">
-                <form action={approvePhoto.bind(null, ph.id)}><button className="text-green-700 underline">Approve</button></form>
-                <form action={rejectPhoto.bind(null, ph.id)}><button className="text-red-700 underline">Reject</button></form>
-              </div>
-            </div>
-          ))}
-        </div>
-        {!pendingPhotos.length && <p className="text-sm text-stone-600">All caught up.</p>}
-      </Card>
-
-      <Card title={`Open reports (${reports.length})`}>
-        <div className="divide-y divide-hairline">
-          {reports.map((r) => (
-            <div key={r.id} className="flex flex-wrap items-start justify-between gap-4 py-3 text-sm">
-              <div>
-                <p>
-                  <Link href={`/profiles/${r.target.code}`} className="font-semibold text-maroon">{r.target.name} ({r.target.code})</Link>
-                  <span className="text-stone-500"> reported by {r.reporter.code}</span>
-                </p>
-                <p className="mt-1 text-stone-700">{r.reason}</p>
-              </div>
-              <div className="flex gap-3">
-                <form action={resolveReport.bind(null, r.id, false)}><button className="underline">Dismiss</button></form>
-                <form action={resolveReport.bind(null, r.id, true)}><button className="text-red-700 underline">Remove profile</button></form>
-              </div>
-            </div>
-          ))}
-          {!reports.length && <p className="text-sm text-stone-600">No open reports.</p>}
-        </div>
-      </Card>
-
-      {admin && (() => {
-        const [ids, payments, revenue, premiumCount, staffList, notifications, activity] = admin;
-        return (
-          <>
-            <Card title={`ID verifications (${ids.length})`}>
-              <p className="mb-4 text-xs text-stone-500">Documents are decrypted only when opened and deleted the moment you approve or reject.</p>
-              <div className="divide-y divide-hairline">
-                {ids.map((v) => (
-                  <div key={v.id} className="flex flex-wrap items-start justify-between gap-4 py-4 text-sm">
-                    <div>
-                      <Link href={`/profiles/${v.profile.code}`} className="font-semibold text-maroon hover:underline">{v.profile.name} ({v.profile.code})</Link>
-                      <p className="text-stone-600">{v.docType.replace("_", " ").toLowerCase()} ending ••{v.last4} · {when(v.createdAt)}</p>
-                      <a href={`/api/admin/id-documents/${v.id}`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-maroon underline decoration-gold/50 underline-offset-4">
-                        {v.documentMime === "application/pdf" ? "Download PDF" : "View document"}
-                      </a>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <ActionForm action={reviewIdVerification.bind(null, v.id, true)}>
-                        <SubmitButton className="!bg-emerald-700 !px-4 !py-1.5">Approve</SubmitButton>
-                      </ActionForm>
-                      <ActionForm action={reviewIdVerification.bind(null, v.id, false)} className="flex gap-2">
-                        <input name="reason" placeholder="Reason (e.g. blurry, name mismatch)" className="rounded-lg border border-hairline px-3 py-1.5 text-sm" />
-                        <SubmitButton variant="danger">Reject</SubmitButton>
-                      </ActionForm>
-                    </div>
-                  </div>
-                ))}
-                {!ids.length && <p className="text-sm text-stone-600">No documents awaiting review.</p>}
-              </div>
-            </Card>
-
-            <Card title="Payments">
-              <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <div className="rounded-xl bg-cream p-4">
-                  <p className="eyebrow text-gold-dark">Revenue</p>
-                  <p className="mt-1 font-display text-3xl font-semibold text-maroon">{rupees(revenue._sum.amount ?? 0)}</p>
-                  <p className="text-xs text-stone-500">{revenue._count} paid orders (excl. demo)</p>
-                </div>
-                <div className="rounded-xl bg-cream p-4">
-                  <p className="eyebrow text-gold-dark">Active premium</p>
-                  <p className="mt-1 font-display text-3xl font-semibold text-maroon">{premiumCount}</p>
-                </div>
-                <div className="rounded-xl bg-cream p-4">
-                  <p className="eyebrow text-gold-dark">Gateway</p>
-                  <p className="mt-1 text-sm font-medium">{razorpayConfigured() ? "Razorpay live" : "Demo mode"}</p>
-                </div>
-              </div>
+      <div className={`grid gap-6 ${money ? "lg:grid-cols-2" : ""}`}>
+        <Panel title="Newest members" actions={<Link href="/admin/members" className={linkCls}>All members</Link>} flush>
+          <ul className="divide-y divide-hairline text-sm">
+            {recentSignups.map((u) => (
+              <li key={u.id}>
+                <Link href={`/admin/members/${u.id}`} className="flex items-center justify-between gap-3 px-5 py-2.5 transition hover:bg-cream/60">
+                  <span className="min-w-0 truncate">
+                    {u.profile ? <span className="font-medium text-ink">{u.profile.name}</span> : <span className="italic text-stone-500">No profile yet</span>}
+                    {u.profile && <span className="ml-2 text-xs text-stone-500">{u.profile.code}</span>}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {!u.phoneVerified && <Badge tone="amber">Phone unverified</Badge>}
+                    {u.profile && <Badge tone={statusTone(u.profile.status)}>{label(u.profile.status)}</Badge>}
+                    <span className="hidden text-xs text-stone-500 sm:inline">{dateTime(u.createdAt)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+        {money && (
+          <Panel title="Recent staff activity" actions={<Link href="/admin/activity" className={linkCls}>Full log</Link>} flush>
+            {money[3].length ? (
               <ul className="divide-y divide-hairline text-sm">
-                {payments.map((p) => (
-                  <li key={p.id} className="flex flex-wrap justify-between gap-2 py-2.5">
-                    <span>
-                      {p.profile ? `${p.profile.name} (${p.profile.code})` : "Deleted account"} · {PLANS.find((x) => x.id === p.plan)?.name ?? p.plan}
-                      {p.demo && <span className="ml-2 rounded bg-sand px-1.5 py-0.5 text-xs text-stone-600">demo</span>}
+                {money[3].map((a) => (
+                  <li key={a.id} className="flex items-baseline justify-between gap-3 px-5 py-2.5">
+                    <span className="min-w-0 truncate">
+                      <span className="font-medium text-ink">{actionLabel(a.action)}</span>
+                      {a.detail && <span className="ml-2 text-xs text-stone-500">{a.detail.slice(0, 60)}</span>}
                     </span>
-                    <span className="text-stone-600">{rupees(p.amount)} · {p.paidAt && when(p.paidAt)}</span>
-                  </li>
-                ))}
-                {!payments.length && <li className="py-2 text-stone-600">No payments yet.</li>}
-              </ul>
-            </Card>
-
-            <Card title="Staff">
-              <ul className="divide-y divide-hairline text-sm">
-                {staffList.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between py-2.5">
-                    <span>
-                      {s.phone} <span className="ml-2 text-xs uppercase tracking-wider text-gold-dark">{s.role.toLowerCase()}</span>
-                    </span>
-                    {s.role === "MODERATOR" && (
-                      <form action={removeModerator.bind(null, s.id)}><button className="text-red-700 hover:underline">Remove</button></form>
-                    )}
+                    <span className="shrink-0 text-xs text-stone-500">{label(a.admin.role)} · {dateTime(a.createdAt)}</span>
                   </li>
                 ))}
               </ul>
-              <ActionForm action={addModerator} className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                <TextField label="Add moderator by mobile number" name="phone" type="tel" inputMode="numeric" required hint="They must already have a verified account." />
-                <SubmitButton>Add moderator</SubmitButton>
-              </ActionForm>
-              <p className="mt-3 text-xs text-stone-500">Moderators can review profiles, photos and reports. They cannot see payments, ID documents, member phone numbers or staff.</p>
-            </Card>
-
-            <Card title="WhatsApp notifications">
-              <p className="mb-3 text-xs text-stone-500">{whatsappConfigured() ? "WhatsApp Cloud API connected." : "Not connected — messages are recorded but not sent. Add WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID."}</p>
-              <ul className="divide-y divide-hairline text-sm">
-                {notifications.map((n) => (
-                  <li key={n.id} className="flex flex-wrap justify-between gap-2 py-2">
-                    <span>
-                      {n.template.replace("_", " ")} → {n.user.phone}
-                      {n.error && <span className="block text-xs text-red-700">{n.error}</span>}
-                    </span>
-                    <span className="text-xs text-stone-500">{n.status.toLowerCase().replace("_", " ")} · {when(n.createdAt)}</span>
-                  </li>
-                ))}
-                {!notifications.length && <li className="py-2 text-stone-600">No notifications yet.</li>}
-              </ul>
-            </Card>
-
-            <Card title="Recent moderation activity">
-              {activity.length ? (
-                <ul className="divide-y divide-hairline text-sm">
-                  {activity.map((a) => (
-                    <li key={a.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
-                      <span>
-                        <span className="font-medium text-ink">{a.action.replace(".", " · ").replace("_", " ")}</span>
-                        <span className="text-stone-500"> {a.targetId}</span>
-                        {a.detail && <span className="block text-xs text-stone-500">{a.detail}</span>}
-                      </span>
-                      <span className="text-xs text-stone-500">{a.admin.phone} · {when(a.createdAt)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-stone-600">No moderation actions yet.</p>
-              )}
-            </Card>
-          </>
-        );
-      })()}
+            ) : (
+              <p className="px-5 py-6 text-sm text-stone-500">No staff actions yet.</p>
+            )}
+          </Panel>
+        )}
+      </div>
     </div>
   );
 }
