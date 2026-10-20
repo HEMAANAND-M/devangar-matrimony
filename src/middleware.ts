@@ -8,7 +8,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // this only gives signed-out visitors an immediate redirect instead of a flash of loading skeleton.
 const MEMBER_PATHS = [
   "/dashboard", "/search", "/interests", "/shortlist", "/profile", "/profiles", "/photos",
-  "/settings", "/admin", "/upgrade", "/verify-id", "/verify",
+  "/settings", "/admin", "/upgrade", "/verify-id", "/verify", "/verify-photo", "/messages", "/visitors",
+  "/invoices",
 ];
 const SESSION_COOKIES = ["__Host-dm_session", "dm_session"];
 

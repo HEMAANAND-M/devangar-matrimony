@@ -7,12 +7,17 @@ import { SignOutButton } from "./SignOutButton";
 
 export async function Nav() {
   const user = await getCurrentUser();
-  const links: [string, string][] = user
+  // Staff accounts without a member profile only work in the admin portal.
+  const staffOnly = !!user && isStaff(user) && !user.profile;
+  const links: [string, string][] = staffOnly
+    ? [["/admin", user.role === "ADMIN" ? "Admin portal" : "Moderation portal"]]
+    : user
     ? [
         ["/dashboard", "Dashboard"],
         ["/search", "Search"],
         ["/interests", "Interests"],
         ["/shortlist", "Shortlist"],
+        ["/messages", "Messages"],
         ["/profile/edit", "My profile"],
         ["/settings", "Settings"],
         ...(isStaff(user) ? ([["/admin", user.role === "ADMIN" ? "Admin" : "Moderation"]] as [string, string][]) : []),
@@ -45,7 +50,7 @@ export async function Nav() {
     <header className="sticky top-0 z-40 border-b border-hairline bg-cream/85 backdrop-blur-md">
       <div className="h-1 bg-gradient-to-r from-maroon-dark via-maroon to-maroon-dark" />
       <nav className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-        <Link href={user ? "/dashboard" : "/"} className="mr-auto" aria-label="Devangar Matrimony home">
+        <Link href={staffOnly ? "/" : user ? "/dashboard" : "/"} className="mr-auto" aria-label="Devangar Matrimony home">
           <Logo />
         </Link>
 

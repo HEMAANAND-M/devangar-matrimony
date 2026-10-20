@@ -11,6 +11,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Lets several dev servers run side by side from one checkout (e.g. NEXT_DIST_DIR=.next-b).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   serverExternalPackages: ["sharp"],
   experimental: {

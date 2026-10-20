@@ -26,3 +26,12 @@ export function normalizePhone(raw: string): string | null {
 
 export const photoUrl = (id: string, size: "thumb" | "full" = "full") =>
   size === "thumb" ? `/api/photos/${id}?size=thumb` : `/api/photos/${id}`;
+
+/** "+91 98••••••32": staff screens show this unless the full number is explicitly revealed. */
+export function maskPhone(phone: string): string {
+  const local = phone.replace(/^\+91/, "");
+  return `+91 ${local.slice(0, 2)}${"•".repeat(Math.max(0, local.length - 4))}${local.slice(-2)}`;
+}
+
+export const dateTime = (d: Date) => d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+export const dateOnly = (d: Date) => d.toLocaleDateString("en-IN", { dateStyle: "medium" });

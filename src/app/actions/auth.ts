@@ -8,7 +8,7 @@ import { normalizePhone } from "@/lib/format";
 import { type FormState, str } from "@/lib/form";
 import { checkOtp, issueOtp } from "@/lib/otp";
 import { HOUR, MINUTE, RATE_LIMITED, clientIp, rateLimitAll } from "@/lib/rate-limit";
-import { createSession, destroySession, getCurrentUser, requireUser } from "@/lib/session";
+import { createSession, destroySession, getCurrentUser, homePath, requireUser } from "@/lib/session";
 
 // Compared against when the phone is unknown, so both paths cost the same.
 const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
@@ -55,7 +55,7 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   if (!allowed) return { error: RATE_LIMITED };
 
   const password = str(fd, "password");
-  const user = phone ? await db.user.findUnique({ where: { phone } }) : null;
+  const user = phone ? await db.user.findUnique({ where: { phone }, include: { profile: { select: { id: true } }, managing: { select: { id: true } } } }) : null;
   const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !ok) return { error: "Incorrect mobile number or password." };
 
@@ -65,7 +65,7 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
     await issueOtp(user.id, user.phone);
     return { redirect: "/verify" };
   }
-  return { redirect: "/dashboard" };
+  return { redirect: homePath(user, !!(user.profile || user.managing)) };
 }
 
 export async function verifyOtp(_: FormState, fd: FormData): Promise<FormState> {
@@ -77,7 +77,7 @@ export async function verifyOtp(_: FormState, fd: FormData): Promise<FormState> 
   const result = await checkOtp(user.id, code);
   if (!result.ok) return { error: result.error };
   await db.user.update({ where: { id: user.id }, data: { phoneVerified: true } });
-  return { redirect: user.profile ? "/dashboard" : "/profile/edit" };
+  return { redirect: homePath(user, !!user.profile) };
 }
 
 export async function resendOtp(): Promise<FormState> {
@@ -130,7 +130,7 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
     data: { passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS), phoneVerified: true, sessionVersion: { increment: 1 } },
   });
   await createSession(updated.id, updated.sessionVersion);
-  return { redirect: "/dashboard" };
+  return { redirect: homePath(updated, !!(await db.profile.findUnique({ where: { userId: updated.id }, select: { id: true } }))) };
 }
 
 export async function changePassword(_: FormState, fd: FormData): Promise<FormState> {

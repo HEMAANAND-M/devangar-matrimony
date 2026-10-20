@@ -18,6 +18,42 @@ enum PaymentStatus {
   CREATED
   PAID
   FAILED
+  REFUNDED
+}
+
+enum UserStatus {
+  ACTIVE
+  /// Temporarily blocked from signing in until suspendedUntil (or until lifted).
+  SUSPENDED
+  /// Permanently blocked.
+  BANNED
+}
+
+enum ReportCategory {
+  FAKE_PROFILE
+  HARASSMENT
+  ALREADY_MARRIED
+  ASKED_FOR_MONEY
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+}
+
+enum ContactRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  SMS
+  EMAIL
 }
 
 enum IdDocType {
@@ -26,6 +62,8 @@ enum IdDocType {
   PASSPORT
   VOTER_ID
   DRIVING_LICENCE
+  /// Live selfie compared against profile photos; approval sets Profile.photoVerifiedAt.
+  SELFIE
 }
 
 enum VerificationStatus {
@@ -83,6 +121,8 @@ enum ProfileStatus {
   APPROVED
   REJECTED
   HIDDEN
+  /// Found their match; hidden from search and counted as a success.
+  MARRIED
 }
 
 enum PhotoVisibility {
@@ -116,6 +156,194 @@ model User {
   adminLogs      AdminLog[]
   payments       Payment[]
   notifications  Notification[]
+
+  status         UserStatus      @default(ACTIVE)
+  statusReason   String?
+  suspendedUntil DateTime?
+  /// Updated at most every few minutes from authenticated requests.
+  lastActiveAt   DateTime?
+  emailOptIn     Boolean         @default(false)
+  /// "en" or "ta".
+  locale         String          @default("en")
+  referralCode   String?         @unique
+  referredById   String?
+  referredBy     User?           @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals      User[]          @relation("Referrals")
+  loginEvents    LoginEvent[]
+  tickets        SupportTicket[]
+  ticketMessages TicketMessage[]
+
+  @@index([createdAt])
+  @@index([lastActiveAt])
+}
+
+/// One row per successful sign-in: powers "devices", member timelines and multi-account detection.
+model LoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Long-lived random id from the dm_device cookie.
+  deviceId  String
+  /// SHA-256 of the IP with SESSION_SECRET; raw IPs are not stored.
+  ipHash    String
+  userAgent String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([deviceId])
+}
+
+/// Key/value configuration editable from the admin portal (plans, dropdown lists, feature switches, page content).
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Coupon {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  /// Exactly one of percentOff / amountOff (paise) is set.
+  percentOff Int?
+  amountOff  Int?
+  /// Plan ids it applies to; empty means all plans.
+  plans      String[]
+  maxUses    Int?
+  uses       Int       @default(0)
+  expiresAt  DateTime?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  /// Optional link shown as a button.
+  href        String?
+  /// all | free | premium | male | female | staff
+  audience    String    @default("all")
+  active      Boolean   @default(true)
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([active, startsAt])
+}
+
+model SupportTicket {
+  id        String          @id @default(cuid())
+  /// Null for messages sent from the public contact form while signed out.
+  userId    String?
+  user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  phone     String?
+  email     String?
+  subject   String
+  status    TicketStatus    @default(OPEN)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  messages  TicketMessage[]
+
+  @@index([status, updatedAt])
+  @@index([userId])
+}
+
+model TicketMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  fromStaff Boolean       @default(false)
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model SuccessStory {
+  id          String    @id @default(cuid())
+  coupleNames String
+  story       String
+  city        String?
+  weddingDate DateTime?
+  photo       Bytes?
+  photoMime   String?
+  published   Boolean   @default(false)
+  /// Member who submitted it, if any.
+  profileId   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([published, createdAt])
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  location    String
+  startsAt    DateTime
+  endsAt      DateTime?
+  href        String?
+  published   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@index([published, startsAt])
+}
+
+model SavedSearch {
+  id             String    @id @default(cuid())
+  profileId      String
+  profile        Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name           String
+  /// The search page's query-string parameters.
+  params         Json
+  alert          Boolean   @default(true)
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([profileId])
+}
+
+/// Chat messages between two members; only allowed once an interest between them is accepted.
+model Message {
+  id         String    @id @default(cuid())
+  interestId String
+  interest   Interest  @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     Profile   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+
+  @@index([interestId, createdAt])
+  @@index([senderId])
+}
+
+/// A request to see a member's phone number; the number is shown only after they approve.
+model ContactRequest {
+  id          String               @id @default(cuid())
+  fromId      String
+  from        Profile              @relation("ContactFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId        String
+  to          Profile              @relation("ContactTo", fields: [toId], references: [id], onDelete: Cascade)
+  status      ContactRequestStatus @default(PENDING)
+  createdAt   DateTime             @default(now())
+  respondedAt DateTime?
+
+  @@unique([fromId, toId])
+  @@index([toId, status])
+}
+
+/// Uploaded horoscope (jathagam), PDF or image, stored separately so profile queries never load it.
+model Horoscope {
+  profileId  String   @id
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  data       Bytes
+  mime       String
+  uploadedAt DateTime @default(now())
 }
 
 /// A family member's account with access to manage another member's profile.
@@ -164,6 +392,19 @@ model Payment {
   razorpayPaymentId String?       @unique
   createdAt         DateTime      @default(now())
   paidAt            DateTime?
+  couponCode        String?
+  /// Discount applied, in paise.
+  discount          Int           @default(0)
+  /// Sequential GST invoice number, e.g. DM/2026-27/000123; assigned when paid.
+  invoiceNumber     String?       @unique
+  failureReason     String?
+  refundedAt        DateTime?
+  /// Refunded amount in paise.
+  refundAmount      Int?
+  refundId          String?
+  /// Premium granted by an admin (cash / bank transfer / goodwill) rather than online checkout.
+  offline           Boolean       @default(false)
+  grantedById       String?
 
   @@index([profileId, createdAt])
   @@index([status, paidAt])
@@ -190,14 +431,15 @@ model IdVerification {
 }
 
 model Notification {
-  id        String             @id @default(cuid())
+  id        String              @id @default(cuid())
   userId    String
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   template  String
   params    Json
-  status    NotificationStatus @default(PENDING)
+  channel   NotificationChannel @default(WHATSAPP)
+  status    NotificationStatus  @default(PENDING)
   error     String?
-  createdAt DateTime           @default(now())
+  createdAt DateTime            @default(now())
   sentAt    DateTime?
 
   @@index([userId, template, createdAt])
@@ -232,6 +474,8 @@ model OtpCode {
   codeHash  String
   expiresAt DateTime
   attempts  Int      @default(0)
+  /// "verify" (phone verification / password reset) or "staff_login" (second step for staff).
+  purpose   String   @default("verify")
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -261,6 +505,7 @@ model Profile {
   dosham     Dosham  @default(DONT_KNOW)
   birthPlace String?
   birthTime  String?
+  lagnam     String?
 
   // Education & career
   education    String
@@ -276,23 +521,47 @@ model Profile {
   fatherOccupation String?
   motherOccupation String?
   siblings         String?
+  fatherName       String?
+  motherName       String?
+  familyType       String?
+  familyStatus     String?
+  nativePlace      String?
   about            String?
 
+  // Lifestyle
+  diet       String?
+  complexion String?
+  languages  String[]
+
   // Partner preferences
-  prefAgeMin        Int?
-  prefAgeMax        Int?
-  prefMaritalStatus MaritalStatus[]
-  prefNotes         String?
+  prefAgeMin            Int?
+  prefAgeMax            Int?
+  prefMaritalStatus     MaritalStatus[]
+  prefNotes             String?
+  /// Same-gothram marriages are traditionally avoided; on by default.
+  prefExcludeOwnGothram Boolean         @default(true)
+  prefStars             String[]
+  prefDosham            Dosham?
+  prefCities            String[]
+  prefEducation         String?
 
   /// Premium membership end date; null or past means free.
-  premiumUntil    DateTime?
+  premiumUntil        DateTime?
   /// Set when an ID document has been approved by an admin.
-  idVerifiedAt    DateTime?
-  photoVisibility PhotoVisibility @default(ALL_MEMBERS)
-  status          ProfileStatus   @default(PENDING)
-  rejectionReason String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  idVerifiedAt        DateTime?
+  /// Set when a selfie check has been approved.
+  photoVerifiedAt     DateTime?
+  marriedAt           DateTime?
+  /// Automatic moderation flags (e.g. "contact_info", "duplicate_photo", "shared_device", "interest_spike").
+  flags               String[]
+  /// Staff-only internal notes.
+  staffNotes          String?
+  horoscopeVisibility PhotoVisibility @default(ACCEPTED_ONLY)
+  photoVisibility     PhotoVisibility @default(ALL_MEMBERS)
+  status              ProfileStatus   @default(PENDING)
+  rejectionReason     String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   photos            Photo[]
   sentInterests     Interest[]       @relation("InterestFrom")
@@ -309,7 +578,13 @@ model Profile {
   familyInvites     FamilyInvite[]
   payments          Payment[]
   idVerifications   IdVerification[]
+  horoscope         Horoscope?
+  savedSearches     SavedSearch[]
+  messagesSent      Message[]        @relation("MessageSender")
+  contactsSent      ContactRequest[] @relation("ContactFrom")
+  contactsReceived  ContactRequest[] @relation("ContactTo")
 
+  @@index([status, createdAt])
   @@index([status, gender, dateOfBirth])
   @@index([status, gender, updatedAt])
   @@index([status, gender, createdAt])
@@ -321,12 +596,15 @@ model Photo {
   profile   Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
   isPrimary Boolean    @default(false)
   approved  Boolean    @default(false)
+  /// 64-bit perceptual (average) hash as hex, for duplicate-photo detection across accounts.
+  hash      String?
   createdAt DateTime   @default(now())
   // Image bytes live in a separate table so listing photos never loads them.
   blob      PhotoBlob?
 
   @@index([profileId])
   @@index([approved, createdAt])
+  @@index([hash])
 }
 
 /**
@@ -373,6 +651,7 @@ model Interest {
   status    InterestStatus @default(PENDING)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+  messages  Message[]
 
   @@unique([fromId, toId])
   @@index([toId, status])
@@ -392,14 +671,22 @@ model Shortlist {
 }
 
 model Report {
-  id         String   @id @default(cuid())
-  reporterId String
-  reporter   Profile  @relation("ReportBy", fields: [reporterId], references: [id], onDelete: Cascade)
-  targetId   String
-  target     Profile  @relation("ReportAgainst", fields: [targetId], references: [id], onDelete: Cascade)
-  reason     String
-  resolved   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id           String         @id @default(cuid())
+  reporterId   String
+  reporter     Profile        @relation("ReportBy", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetId     String
+  target       Profile        @relation("ReportAgainst", fields: [targetId], references: [id], onDelete: Cascade)
+  reason       String
+  category     ReportCategory @default(OTHER)
+  /// 1 = high, 2 = normal, 3 = low.
+  priority     Int            @default(2)
+  /// Internal staff notes.
+  notes        String?
+  resolved     Boolean        @default(false)
+  resolution   String?
+  resolvedAt   DateTime?
+  resolvedById String?
+  createdAt    DateTime       @default(now())
 
   @@index([resolved, createdAt])
 }

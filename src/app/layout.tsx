@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Geist } from "next/font/google";
-import { Footer } from "@/components/Footer";
-import { Nav } from "@/components/Nav";
 import { SITE_NAME } from "@/lib/constants";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -52,9 +50,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <Nav />
-        <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">{children}</main>
-        <Footer />
+        {children}
       </body>
     </html>
   );

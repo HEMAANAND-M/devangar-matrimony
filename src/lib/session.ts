@@ -91,6 +91,12 @@ export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>
 
 export const isStaff = (user: { role: string }) => user.role === "ADMIN" || user.role === "MODERATOR";
 
+/** Where a signed-in account belongs: staff without a member profile work in the admin portal. */
+export function homePath(user: { role: string }, hasProfile: boolean): string {
+  if (isStaff(user) && !hasProfile) return "/admin";
+  return hasProfile ? "/dashboard" : "/profile/edit";
+}
+
 /** Signed-in user with a verified phone; redirects otherwise. */
 export async function requireUser() {
   const user = await getCurrentUser();
@@ -102,7 +108,7 @@ export async function requireUser() {
 /** Signed-in user with a profile; redirects to profile creation otherwise. */
 export async function requireProfile() {
   const user = await requireUser();
-  if (!user.profile) redirect("/profile/edit");
+  if (!user.profile) redirect(homePath(user, false));
   return { user, profile: user.profile };
 }
 

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Mandala } from "@/components/Ornaments";
+import { SiteChrome } from "@/components/SiteChrome";
 
 export default function NotFound() {
   return (
+    <SiteChrome>
     <div className="relative mx-auto max-w-xl overflow-hidden py-20 text-center">
       <Mandala className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 text-gold opacity-15" />
       <div className="relative">
@@ -16,5 +18,6 @@ export default function NotFound() {
         </Link>
       </div>
     </div>
+    </SiteChrome>
   );
 }

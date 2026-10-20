@@ -17,6 +17,7 @@ const STATUS_TEXT = {
   APPROVED: ["Live", "Your profile is visible to members."],
   REJECTED: ["Needs changes", "Please update your profile — see the note on the profile page."],
   HIDDEN: ["Hidden", "Your profile is hidden from search. Unhide it any time."],
+  MARRIED: ["Married", "Congratulations! Your profile is no longer shown in search."],
 } as const;
 
 export default async function DashboardPage() {
