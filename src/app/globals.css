@@ -38,6 +38,14 @@
     color: #1e1a17;
   }
 
+  /* Cormorant defaults to old-style figures, where 0 reads as the letter O. */
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-variant-numeric: lining-nums;
+  }
+
   ::selection {
     background: #e9dcc3;
     color: #3f0b1b;

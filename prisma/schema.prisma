@@ -59,16 +59,40 @@ enum InterestStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  phone         String    @unique
-  email         String?   @unique
-  passwordHash  String
-  role          Role      @default(USER)
-  phoneVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  lastLoginAt   DateTime?
-  profile       Profile?
-  otpCodes      OtpCode[]
+  id             String     @id @default(cuid())
+  phone          String     @unique
+  email          String?    @unique
+  passwordHash   String
+  role           Role       @default(USER)
+  phoneVerified  Boolean    @default(false)
+  // Bumped on password change / "log out everywhere"; sessions carrying an older value are rejected.
+  sessionVersion Int        @default(0)
+  createdAt      DateTime   @default(now())
+  lastLoginAt    DateTime?
+  profile        Profile?
+  otpCodes       OtpCode[]
+  adminLogs      AdminLog[]
+}
+
+/**
+ * Fixed-window counters for rate limiting; shared by all server instances.
+ */
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
+model AdminLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  action    String
+  targetId  String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model OtpCode {
@@ -136,28 +160,69 @@ model Profile {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  photos       Photo[]
-  sentInterests     Interest[]  @relation("InterestFrom")
-  receivedInterests Interest[]  @relation("InterestTo")
-  shortlists        Shortlist[] @relation("ShortlistOwner")
-  shortlistedBy     Shortlist[] @relation("ShortlistTarget")
-  reportsMade       Report[]    @relation("ReportBy")
-  reportsReceived   Report[]    @relation("ReportAgainst")
+  photos            Photo[]
+  sentInterests     Interest[]    @relation("InterestFrom")
+  receivedInterests Interest[]    @relation("InterestTo")
+  shortlists        Shortlist[]   @relation("ShortlistOwner")
+  shortlistedBy     Shortlist[]   @relation("ShortlistTarget")
+  reportsMade       Report[]      @relation("ReportBy")
+  reportsReceived   Report[]      @relation("ReportAgainst")
+  blocksMade        Block[]       @relation("BlockBy")
+  blocksReceived    Block[]       @relation("BlockAgainst")
+  viewsMade         ProfileView[] @relation("ViewBy")
+  viewsReceived     ProfileView[] @relation("ViewOf")
 
-  @@index([status, gender])
+  @@index([status, gender, dateOfBirth])
+  @@index([status, gender, updatedAt])
+  @@index([status, gender, createdAt])
 }
 
 model Photo {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   profileId String
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  fileName  String
-  mimeType  String
-  isPrimary Boolean  @default(false)
-  approved  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  profile   Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  isPrimary Boolean    @default(false)
+  approved  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  // Image bytes live in a separate table so listing photos never loads them.
+  blob      PhotoBlob?
 
   @@index([profileId])
+  @@index([approved, createdAt])
+}
+
+/**
+ * Re-encoded WebP renditions; EXIF (including GPS) is stripped on upload.
+ */
+model PhotoBlob {
+  photoId String @id
+  photo   Photo  @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  full    Bytes
+  thumb   Bytes
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   Profile  @relation("BlockBy", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   Profile  @relation("BlockAgainst", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model ProfileView {
+  id       String   @id @default(cuid())
+  viewerId String
+  viewer   Profile  @relation("ViewBy", fields: [viewerId], references: [id], onDelete: Cascade)
+  viewedId String
+  viewed   Profile  @relation("ViewOf", fields: [viewedId], references: [id], onDelete: Cascade)
+  viewedAt DateTime @default(now())
+
+  @@unique([viewerId, viewedId])
+  @@index([viewedId, viewedAt])
 }
 
 model Interest {
@@ -173,6 +238,7 @@ model Interest {
 
   @@unique([fromId, toId])
   @@index([toId, status])
+  @@index([fromId, createdAt])
 }
 
 model Shortlist {
@@ -184,6 +250,7 @@ model Shortlist {
   createdAt DateTime @default(now())
 
   @@unique([ownerId, targetId])
+  @@index([targetId])
 }
 
 model Report {
@@ -195,4 +262,6 @@ model Report {
   reason     String
   resolved   Boolean  @default(false)
   createdAt  DateTime @default(now())
+
+  @@index([resolved, createdAt])
 }

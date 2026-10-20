@@ -1,16 +1,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { type FormState, str } from "@/lib/form";
+import { findContactInfo } from "@/lib/moderation";
+import { browsableWhere } from "@/lib/queries";
+import { HOUR, RATE_LIMITED, rateLimitAll } from "@/lib/rate-limit";
 import { requireProfile } from "@/lib/session";
 
 const DAILY_INTEREST_LIMIT = 20;
 
-async function approvedTarget(targetId: string, viewerGender: string) {
-  return db.profile.findFirst({
-    where: { id: targetId, status: "APPROVED", gender: { not: viewerGender as "MALE" | "FEMALE" } },
-  });
+type Viewer = Awaited<ReturnType<typeof requireProfile>>["profile"];
+
+/** Target the viewer may interact with: approved, opposite gender, and no block either way. */
+function browsableTarget(targetId: string, viewer: Viewer) {
+  return db.profile.findFirst({ where: { ...browsableWhere(viewer), id: targetId } });
 }
 
 export async function sendInterest(targetId: string, _: FormState, fd: FormData): Promise<FormState> {
@@ -18,19 +23,23 @@ export async function sendInterest(targetId: string, _: FormState, fd: FormData)
   if (profile.status !== "APPROVED") {
     return { error: "You can send interests once your profile is approved." };
   }
-  const target = await approvedTarget(targetId, profile.gender);
+  const target = await browsableTarget(targetId, profile);
   if (!target) return { error: "This profile is not available." };
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sentToday = await db.interest.count({ where: { fromId: profile.id, createdAt: { gte: since } } });
   if (sentToday >= DAILY_INTEREST_LIMIT) return { error: "Daily interest limit reached. Try again tomorrow." };
 
+  const message = str(fd, "message").slice(0, 300) || null;
+  const found = findContactInfo(message);
+  if (found) return { error: `Please remove ${found} from your message. Contact details are shared once the interest is accepted.` };
+
   const reverse = await db.interest.findUnique({ where: { fromId_toId: { fromId: target.id, toId: profile.id } } });
   if (reverse) return { error: "This member has already sent you an interest. Respond to it from Interests." };
 
   await db.interest.upsert({
     where: { fromId_toId: { fromId: profile.id, toId: target.id } },
-    create: { fromId: profile.id, toId: target.id, message: str(fd, "message").slice(0, 300) || null },
+    create: { fromId: profile.id, toId: target.id, message },
     update: {},
   });
   revalidatePath(`/profiles/${target.code}`);
@@ -58,7 +67,7 @@ export async function toggleShortlist(targetId: string) {
   const existing = await db.shortlist.findUnique({ where: key });
   if (existing) {
     await db.shortlist.delete({ where: key });
-  } else if (await approvedTarget(targetId, profile.gender)) {
+  } else if (await browsableTarget(targetId, profile)) {
     await db.shortlist.create({ data: { ownerId: profile.id, targetId } });
   }
   revalidatePath("/shortlist");
@@ -67,9 +76,48 @@ export async function toggleShortlist(targetId: string) {
 
 export async function reportProfile(targetId: string, _: FormState, fd: FormData): Promise<FormState> {
   const { profile } = await requireProfile();
+  if (!(await rateLimitAll([[`report:${profile.id}`, 10, 24 * HOUR]]))) return { error: RATE_LIMITED };
   const reason = str(fd, "reason");
   if (reason.length < 10) return { error: "Please describe the problem (at least 10 characters)." };
   if (targetId === profile.id) return { error: "You cannot report your own profile." };
+  if (!(await db.profile.findUnique({ where: { id: targetId }, select: { id: true } }))) {
+    return { error: "This profile is not available." };
+  }
   await db.report.create({ data: { reporterId: profile.id, targetId, reason: reason.slice(0, 1000) } });
   return { message: "Thank you. Our team will review this profile." };
+}
+
+/**
+ * Blocking hides both members from each other everywhere and withdraws any pending interest
+ * between them. Accepted connections are removed too, so contact details stop being shown.
+ */
+export async function blockProfile(targetId: string) {
+  const { profile } = await requireProfile();
+  if (targetId === profile.id) return;
+  if (!(await db.profile.findUnique({ where: { id: targetId }, select: { id: true } }))) return;
+  await db.$transaction([
+    db.block.upsert({
+      where: { blockerId_blockedId: { blockerId: profile.id, blockedId: targetId } },
+      create: { blockerId: profile.id, blockedId: targetId },
+      update: {},
+    }),
+    db.interest.deleteMany({
+      where: { OR: [{ fromId: profile.id, toId: targetId }, { fromId: targetId, toId: profile.id }] },
+    }),
+    db.shortlist.deleteMany({ where: { ownerId: profile.id, targetId } }),
+  ]);
+  revalidatePath("/", "layout");
+  redirect("/settings?blocked=1");
+}
+
+/** Form-friendly wrapper so the block button can show a confirm dialog via ActionForm. */
+export async function blockFromForm(targetId: string): Promise<FormState> {
+  await blockProfile(targetId);
+  return {};
+}
+
+export async function unblockProfile(targetId: string) {
+  const { profile } = await requireProfile();
+  await db.block.deleteMany({ where: { blockerId: profile.id, blockedId: targetId } });
+  revalidatePath("/settings");
 }

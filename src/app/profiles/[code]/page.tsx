@@ -1,16 +1,20 @@
 import { notFound } from "next/navigation";
-import { reportProfile, sendInterest, toggleShortlist } from "@/app/actions/interactions";
+import { after } from "next/server";
+import { blockFromForm, reportProfile, sendInterest, toggleShortlist } from "@/app/actions/interactions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Card } from "@/components/Card";
+import { PoruthamCard } from "@/components/PoruthamCard";
 import { TextArea } from "@/components/fields";
-import { isConnected, visiblePhotos } from "@/lib/access";
+import { isBlocked, isConnected, visiblePhotos } from "@/lib/access";
 import { DOSHAM_LABELS, MARITAL_STATUS_LABELS, PROFILE_FOR_LABELS } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { ageFrom, heightLabel } from "@/lib/format";
+import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
+import { porutham } from "@/lib/porutham";
 import { withPhotos } from "@/lib/queries";
 import { requireProfile } from "@/lib/session";
 
 function Facts({ rows }: { rows: [string, string | null | undefined][] }) {
+  if (!rows.some(([, v]) => v)) return <p className="text-sm italic text-stone-400">Not added yet</p>;
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
       {rows.filter(([, v]) => v).map(([k, v]) => (
@@ -23,6 +27,11 @@ function Facts({ rows }: { rows: [string, string | null | undefined][] }) {
   );
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
+  // The ID only: member names stay out of browser history and tab titles.
+  return { title: `Profile ${(await params).code}` };
+}
+
 export default async function ProfilePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const { user, profile: me } = await requireProfile();
@@ -31,6 +40,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
   const p = await db.profile.findUnique({ where: { code }, include: { ...withPhotos, user: { select: { phone: true } } } });
   const isSelf = p?.id === me.id;
   if (!p || (!isSelf && !isAdmin && (p.status !== "APPROVED" || p.gender === me.gender))) notFound();
+  if (!isSelf && !isAdmin && (await isBlocked(me.id, p.id))) notFound();
+
+  if (!isSelf && !isAdmin) {
+    // Recorded after the response is sent so it never slows the page.
+    after(() =>
+      db.profileView.upsert({
+        where: { viewerId_viewedId: { viewerId: me.id, viewedId: p.id } },
+        create: { viewerId: me.id, viewedId: p.id },
+        update: { viewedAt: new Date() },
+      }),
+    );
+  }
 
   const [connected, sent, received, shortlisted] = await Promise.all([
     isConnected(me.id, p.id),
@@ -40,6 +61,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
   ]);
   const photos = visiblePhotos(p, { profileId: me.id, isAdmin }, connected);
   const hiddenPhotos = !photos.length && p.photos.some((ph) => ph.approved) && p.photoVisibility === "ACCEPTED_ONLY";
+  const match = isSelf ? null : me.gender === "FEMALE" ? porutham(me, p) : porutham(p, me);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -49,7 +71,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
             <div className="grid gap-1">
               {photos.map((ph) => (
                 // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
-                <img key={ph.id} src={`/api/photos/${ph.id}`} alt={p.name} className="w-full object-cover" />
+                <img key={ph.id} src={photoUrl(ph.id)} alt={p.name} decoding="async" className="w-full object-cover" />
               ))}
             </div>
           ) : (
@@ -100,6 +122,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
             {ageFrom(p.dateOfBirth)} yrs · {p.occupation} · {p.city}, {p.state}
           </p>
         </div>
+        {match && <PoruthamCard report={match} />}
+        {!isSelf && !match && (
+          <p className="rounded-xl border border-dashed border-hairline bg-white px-4 py-3 text-sm text-stone-600">
+            Add your star and rasi to your profile to see star compatibility with members.
+          </p>
+        )}
         {p.about && <Card title="About"><p className="whitespace-pre-line text-sm text-stone-700">{p.about}</p></Card>}
         <Card title="Basic details">
           <Facts rows={[
@@ -135,13 +163,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
           ]} />
         </Card>
         {!isSelf && (
-          <details className="text-sm text-stone-600">
-            <summary className="cursor-pointer">Report this profile</summary>
-            <ActionForm action={reportProfile.bind(null, p.id)} className="mt-3 space-y-3">
-              <TextArea label="What is wrong with this profile?" name="reason" required minLength={10} maxLength={1000} />
-              <SubmitButton variant="danger">Submit report</SubmitButton>
+          <div className="flex flex-wrap items-start gap-x-8 gap-y-3 pt-2 text-sm text-stone-600">
+            <details className="min-w-0 flex-1">
+              <summary className="cursor-pointer hover:text-maroon">Report this profile</summary>
+              <ActionForm action={reportProfile.bind(null, p.id)} className="mt-3 space-y-3">
+                <TextArea label="What is wrong with this profile?" name="reason" required minLength={10} maxLength={1000} />
+                <SubmitButton variant="danger">Submit report</SubmitButton>
+              </ActionForm>
+            </details>
+            <ActionForm action={blockFromForm.bind(null, p.id)} confirm="Block this member? You will no longer see each other, and any interest between you will be removed.">
+              <button type="submit" className="hover:text-red-700">Block member</button>
             </ActionForm>
-          </details>
+          </div>
         )}
       </div>
     </div>

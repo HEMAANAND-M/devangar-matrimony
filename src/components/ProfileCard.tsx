@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Photo, Profile } from "@prisma/client";
-import { ageFrom, heightLabel } from "@/lib/format";
+import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
 
 export type CardProfile = Profile & { photos: Photo[] };
 
@@ -20,7 +20,9 @@ export function ProfileCard({ profile, photo }: { profile: CardProfile; photo?: 
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
           <img
-            src={`/api/photos/${photo.id}`}
+            src={photoUrl(photo.id, "thumb")}
+            loading="lazy"
+            decoding="async"
             alt={profile.name}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
           />

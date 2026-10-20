@@ -48,10 +48,16 @@ const PRIVACY = [
 
 const SEARCH_BY = ["Star & rasi", "Age & height", "Mother tongue", "Dosham", "City", "Education", "Marital status", "Profile ID"];
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   if (await getCurrentUser()) redirect("/dashboard");
+  const { deleted } = await searchParams;
   return (
     <div className="-mt-10">
+      {deleted && (
+        <p role="status" className="full-bleed bg-emerald-50 px-4 py-3 text-center text-sm text-emerald-800">
+          Your account and all its data have been permanently deleted.
+        </p>
+      )}
       {/* Hero */}
       <section className="full-bleed relative overflow-hidden bg-gradient-to-br from-maroon-dark via-maroon to-maroon-light text-white">
         <DotPattern id="hero-dots" className="absolute inset-0 h-full w-full text-gold opacity-[0.12]" />

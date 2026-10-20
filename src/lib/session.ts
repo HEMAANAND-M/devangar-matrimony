@@ -1,10 +1,12 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { db } from "./db";
 
-const COOKIE = "dm_session";
+// __Host- cookies must be Secure, host-only and path=/, which blocks subdomain cookie injection.
+const COOKIE = process.env.NODE_ENV === "production" ? "__Host-dm_session" : "dm_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
 function key() {
@@ -15,8 +17,8 @@ function key() {
   return new TextEncoder().encode(secret);
 }
 
-export async function createSession(userId: string) {
-  const token = await new SignJWT({ sub: userId })
+export async function createSession(userId: string, sessionVersion: number) {
+  const token = await new SignJWT({ sub: userId, v: sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
@@ -34,22 +36,27 @@ export async function destroySession() {
   (await cookies()).delete(COOKIE);
 }
 
-export async function getSessionUserId(): Promise<string | null> {
+async function readSession(): Promise<{ userId: string; version: number } | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, key());
-    return typeof payload.sub === "string" ? payload.sub : null;
+    const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
+    if (typeof payload.sub !== "string") return null;
+    return { userId: payload.sub, version: typeof payload.v === "number" ? payload.v : -1 };
   } catch {
     return null;
   }
 }
 
-export async function getCurrentUser() {
-  const id = await getSessionUserId();
-  if (!id) return null;
-  return db.user.findUnique({ where: { id }, include: { profile: true } });
-}
+/** Current user, memoised per request so layout + page share one query. */
+export const getCurrentUser = cache(async () => {
+  const session = await readSession();
+  if (!session) return null;
+  const user = await db.user.findUnique({ where: { id: session.userId }, include: { profile: true } });
+  // Reject sessions issued before a password change or "log out everywhere".
+  if (!user || user.sessionVersion !== session.version) return null;
+  return user;
+});
 
 /** Signed-in user with a verified phone; redirects otherwise. */
 export async function requireUser() {

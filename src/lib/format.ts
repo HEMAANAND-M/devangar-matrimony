@@ -23,3 +23,6 @@ export function normalizePhone(raw: string): string | null {
   const local = digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
   return /^[6-9]\d{9}$/.test(local) ? `+91${local}` : null;
 }
+
+export const photoUrl = (id: string, size: "thumb" | "full" = "full") =>
+  size === "thumb" ? `/api/photos/${id}?size=thumb` : `/api/photos/${id}`;

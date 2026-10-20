@@ -3,6 +3,7 @@ import { deletePhoto, makePrimaryPhoto, uploadPhoto } from "@/app/actions/profil
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Card } from "@/components/Card";
 import { db } from "@/lib/db";
+import { photoUrl } from "@/lib/format";
 import { MAX_PHOTOS } from "@/lib/photos";
 import { requireProfile } from "@/lib/session";
 
@@ -26,7 +27,7 @@ export default async function PhotosPage({ searchParams }: { searchParams: Promi
           {photos.map((ph) => (
             <div key={ph.id} className="overflow-hidden rounded-md border border-hairline">
               {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-              <img src={`/api/photos/${ph.id}`} alt="" className="aspect-[4/5] w-full object-cover" />
+              <img src={photoUrl(ph.id, "thumb")} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover" />
               <div className="space-y-2 p-2 text-xs">
                 <p>
                   {ph.isPrimary && <span className="mr-1 rounded bg-maroon px-1.5 py-0.5 text-white">Primary</span>}

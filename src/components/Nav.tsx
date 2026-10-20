@@ -13,6 +13,7 @@ export async function Nav() {
         ["/interests", "Interests"],
         ["/shortlist", "Shortlist"],
         ["/profile/edit", "My profile"],
+        ["/settings", "Settings"],
         ...(user.role === "ADMIN" ? ([["/admin", "Admin"]] as [string, string][]) : []),
       ]
     : [];

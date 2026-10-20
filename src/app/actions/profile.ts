@@ -1,8 +1,6 @@
 "use server";
 
-import { randomInt, randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -11,7 +9,9 @@ import { MOTHER_TONGUES, RASIS, STARS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { ageFrom } from "@/lib/format";
 import { type FormState, opt } from "@/lib/form";
-import { MAX_PHOTO_BYTES, MAX_PHOTOS, UPLOAD_DIR, sniffImage } from "@/lib/photos";
+import { findContactInfo } from "@/lib/moderation";
+import { MAX_PHOTO_BYTES, MAX_PHOTOS, processPhoto } from "@/lib/photos";
+import { HOUR, RATE_LIMITED, rateLimitAll } from "@/lib/rate-limit";
 import { requireProfile, requireUser } from "@/lib/session";
 
 /** Optional field: empty input becomes null so updates can clear it. */
@@ -77,6 +77,10 @@ export async function saveProfile(_: FormState, fd: FormData): Promise<FormState
   const parsed = profileSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form." };
   const data = parsed.data;
+  for (const field of ["about", "siblings", "prefNotes", "fatherOccupation", "motherOccupation"] as const) {
+    const found = findContactInfo(data[field]);
+    if (found) return { error: `Please remove ${found} from your profile. Contact details are shared only after an interest is accepted.` };
+  }
 
   const existing = user.profile;
   if (existing) {
@@ -113,18 +117,20 @@ export async function uploadPhoto(_: FormState, fd: FormData): Promise<FormState
   if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo to upload." };
   if (file.size > MAX_PHOTO_BYTES) return { error: "Photo must be 5 MB or smaller." };
 
+  if (!(await rateLimitAll([[`upload:${profile.id}`, 20, HOUR]]))) return { error: RATE_LIMITED };
+
   const count = await db.photo.count({ where: { profileId: profile.id } });
   if (count >= MAX_PHOTOS) return { error: `You can upload up to ${MAX_PHOTOS} photos.` };
 
-  const buf = Buffer.from(await file.arrayBuffer());
-  const kind = sniffImage(buf);
-  if (!kind) return { error: "Only JPEG, PNG or WebP images are allowed." };
+  const processed = await processPhoto(Buffer.from(await file.arrayBuffer()));
+  if (!processed) return { error: "Only JPEG, PNG or WebP images are allowed." };
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  const fileName = `${randomUUID()}.${kind.ext}`;
-  await writeFile(path.join(UPLOAD_DIR, fileName), buf);
   await db.photo.create({
-    data: { profileId: profile.id, fileName, mimeType: kind.mime, isPrimary: count === 0 },
+    data: {
+      profileId: profile.id,
+      isPrimary: count === 0,
+      blob: { create: { full: new Uint8Array(processed.full), thumb: new Uint8Array(processed.thumb) } },
+    },
   });
   revalidatePath("/photos");
   return { message: "Uploaded. The photo will be visible to others after review." };
@@ -140,7 +146,6 @@ async function ownPhoto(photoId: string) {
 export async function deletePhoto(photoId: string) {
   const photo = await ownPhoto(photoId);
   await db.photo.delete({ where: { id: photo.id } });
-  await unlink(path.join(UPLOAD_DIR, photo.fileName)).catch(() => {});
   if (photo.isPrimary) {
     const next = await db.photo.findFirst({ where: { profileId: photo.profileId }, orderBy: { createdAt: "asc" } });
     if (next) await db.photo.update({ where: { id: next.id }, data: { isPrimary: true } });

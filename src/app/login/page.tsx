@@ -15,6 +15,9 @@ export default async function LoginPage() {
       <ActionForm action={login} className="space-y-5">
         <TextField label="Mobile number" name="phone" type="tel" inputMode="numeric" placeholder="98765 43210" required autoComplete="tel" />
         <TextField label="Password" name="password" type="password" required autoComplete="current-password" />
+        <p className="-mt-2 text-right text-sm">
+          <Link href="/forgot-password" className="text-stone-600 hover:text-maroon">Forgot password?</Link>
+        </p>
         <SubmitButton className="w-full py-3.5">Log in</SubmitButton>
       </ActionForm>
       <p className="mt-8 border-t border-hairline pt-6 text-center text-sm text-stone-600">

@@ -3,18 +3,19 @@ import { approvePhoto, approveProfile, rejectPhoto, rejectProfile, resolveReport
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Card, PageHeader } from "@/components/Card";
 import { db } from "@/lib/db";
-import { ageFrom } from "@/lib/format";
+import { ageFrom, photoUrl } from "@/lib/format";
 import { requireAdmin } from "@/lib/session";
 
 export const metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   await requireAdmin();
-  const [pendingProfiles, pendingPhotos, reports, stats] = await Promise.all([
+  const [pendingProfiles, pendingPhotos, reports, stats, activity] = await Promise.all([
     db.profile.findMany({ where: { status: "PENDING" }, include: { user: { select: { phone: true } } }, orderBy: { updatedAt: "asc" }, take: 50 }),
     db.photo.findMany({ where: { approved: false }, include: { profile: { select: { code: true, name: true } } }, orderBy: { createdAt: "asc" }, take: 60 }),
     db.report.findMany({ where: { resolved: false }, include: { reporter: true, target: true }, orderBy: { createdAt: "asc" } }),
     db.profile.groupBy({ by: ["status"], _count: true }),
+    db.adminLog.findMany({ include: { admin: { select: { phone: true } } }, orderBy: { createdAt: "desc" }, take: 15 }),
   ]);
 
   return (
@@ -61,7 +62,7 @@ export default async function AdminPage() {
           {pendingPhotos.map((ph) => (
             <div key={ph.id} className="overflow-hidden rounded-md border border-hairline text-xs">
               {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-              <img src={`/api/photos/${ph.id}`} alt="" className="aspect-[4/5] w-full object-cover" />
+              <img src={photoUrl(ph.id, "thumb")} alt="" loading="lazy" decoding="async" className="aspect-[4/5] w-full object-cover" />
               <p className="truncate px-2 pt-1">{ph.profile.name} ({ph.profile.code})</p>
               <div className="flex justify-between p-2">
                 <form action={approvePhoto.bind(null, ph.id)}><button className="text-green-700 underline">Approve</button></form>
@@ -92,6 +93,27 @@ export default async function AdminPage() {
           ))}
           {!reports.length && <p className="text-sm text-stone-600">No open reports.</p>}
         </div>
+      </Card>
+
+      <Card title="Recent moderation activity">
+        {activity.length ? (
+          <ul className="divide-y divide-hairline text-sm">
+            {activity.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
+                <span>
+                  <span className="font-medium text-ink">{a.action.replace(".", " · ").replace("_", " ")}</span>
+                  <span className="text-stone-500"> {a.targetId}</span>
+                  {a.detail && <span className="block text-xs text-stone-500">{a.detail}</span>}
+                </span>
+                <span className="text-xs text-stone-500">
+                  {a.admin.phone} · {a.createdAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-stone-600">No moderation actions yet.</p>
+        )}
       </Card>
     </div>
   );

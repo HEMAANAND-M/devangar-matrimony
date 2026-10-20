@@ -17,6 +17,15 @@ export async function isConnected(a: string, b: string): Promise<boolean> {
   return !!hit;
 }
 
+/** True when either profile has blocked the other. */
+export async function isBlocked(a: string, b: string): Promise<boolean> {
+  const hit = await db.block.findFirst({
+    where: { OR: [{ blockerId: a, blockedId: b }, { blockerId: b, blockedId: a }] },
+    select: { id: true },
+  });
+  return !!hit;
+}
+
 /** IDs of every profile the given profile is connected with. */
 export async function connectedIds(profileId: string): Promise<Set<string>> {
   const rows = await db.interest.findMany({

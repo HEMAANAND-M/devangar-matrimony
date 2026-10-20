@@ -2,6 +2,7 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
+import { rateLimit } from "./rate-limit";
 
 const TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -22,6 +23,10 @@ export async function issueOtp(userId: string, phone: string): Promise<{ ok: tru
   const last = await db.otpCode.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } });
   if (last && Date.now() - last.createdAt.getTime() < RESEND_COOLDOWN_MS) {
     return { ok: false, error: "Please wait a minute before requesting another code." };
+  }
+  // Caps SMS spend and stops a number being flooded with codes.
+  if (!(await rateLimit(`otp:day:${phone}`, 8, 24 * 60 * 60 * 1000))) {
+    return { ok: false, error: "Daily limit for codes reached. Please try again tomorrow." };
   }
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   await db.otpCode.deleteMany({ where: { userId } });

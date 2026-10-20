@@ -29,17 +29,32 @@ To stop using free hours, stop the Codespace from <https://github.com/codespaces
 | ----- | -------- | ------ |
 | ![Login](docs/screenshots/login.png) | ![Register](docs/screenshots/register.png) | ![Mobile home](docs/screenshots/home-mobile.png) |
 
-## Features (MVP)
+## Features
 
-- Registration with mobile number + password and OTP verification
+**Matchmaking**
+- Registration with mobile number + password and OTP verification; password reset by OTP
 - Detailed profiles: gothram, kuladeivam, sub-sect, star, rasi, dosham, birth details, education, family, partner preferences
-- Up to 6 photos per profile, stored outside `public/` and served only through an access-checked route
-- Photo privacy: visible to all members, or only after an interest is accepted
-- Search by age, star, mother tongue, marital status, city, education and profile ID
-- Recommended matches on the dashboard based on partner preferences
+- **Thirumana porutham** — 10-porutham star compatibility (Dinam, Ganam, Mahendram, Stree Deergham, Yoni, Rajju, Vedhai, Rasi, Rasi Adhipathi, Vasyam) on every profile
+- Search by age, height, star, rasi, dosham, mother tongue, marital status, city, education, gothram exclusion and profile ID
+- Recommended matches, **who viewed my profile**, and a profile-strength meter on the dashboard
 - Send / accept / decline / withdraw interests; contact number revealed only after acceptance
-- Shortlist, hide/unhide profile, report a profile
-- Admin panel: approve/reject profiles and photos, handle reports
+- Shortlist, hide/unhide profile, report and **block** members
+- Admin panel: approve/reject profiles and photos, handle reports, moderation activity log
+- Installable on phones (PWA), branded link previews for WhatsApp / social sharing
+
+**Security & privacy**
+- Nonce-based Content Security Policy, HSTS, frame blocking and other security headers
+- Postgres-backed rate limiting on login, registration, OTP, password reset, reports and uploads (works across serverless instances)
+- Sessions in signed `HttpOnly` / `SameSite` cookies (`__Host-` prefixed in production), revocable via password change or "log out of all devices"
+- Photos re-encoded on upload: **EXIF/GPS location stripped**, decompression bombs rejected, served only through an access-checked route
+- Contact details (phone numbers, emails, social handles) blocked in profile text and interest messages
+- Account deletion that removes all personal data (DPDP Act right to erasure)
+
+**Performance**
+- WebP photos resized to 1200px plus 480px thumbnails for cards, with ETag caching
+- Image bytes stored apart from photo metadata so lists never load them
+- Per-request user caching, parallel queries and targeted database indexes
+- Skeleton loading states and self-hosted fonts
 
 ## Setup
 
@@ -87,11 +102,9 @@ src/components/           shared UI
 
 ## Next steps before launch
 
-- Real SMS provider for OTP, and rate limiting on login/OTP by IP
-- Password reset via OTP
+- Real SMS provider for OTP (MSG91, Twilio, Fast2SMS…)
 - Razorpay premium plans (e.g. contact views limited to paid members)
 - In-app chat between connected members
-- Horoscope (porutham) matching
 - Email/SMS notifications for new interests
-- Object storage (S3/R2) for photos instead of local disk
+- Object storage (S3/R2) for photos once the member base grows
 - Terms of service, privacy policy and compliance with India's DPDP Act 2023

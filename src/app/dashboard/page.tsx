@@ -3,6 +3,7 @@ import { setProfileHidden } from "@/app/actions/profile";
 import { Card, PageHeader } from "@/components/Card";
 import { ProfileCard, cardPhoto } from "@/components/ProfileCard";
 import { connectedIds } from "@/lib/access";
+import { completeness } from "@/lib/completeness";
 import { db } from "@/lib/db";
 import { dobRangeForAges } from "@/lib/format";
 import { browsableWhere, withPhotos } from "@/lib/queries";
@@ -19,28 +20,35 @@ const STATUS_TEXT = {
 
 export default async function DashboardPage() {
   const { profile } = await requireProfile();
-  const [received, accepted, photoCount, connected] = await Promise.all([
-    db.interest.count({ where: { toId: profile.id, status: "PENDING" } }),
-    db.interest.count({ where: { status: "ACCEPTED", OR: [{ fromId: profile.id }, { toId: profile.id }] } }),
-    db.photo.count({ where: { profileId: profile.id } }),
-    connectedIds(profile.id),
-  ]);
-
   const ageFilter =
     profile.prefAgeMin || profile.prefAgeMax
       ? { dateOfBirth: dobRangeForAges(profile.prefAgeMin ?? 18, profile.prefAgeMax ?? 80) }
       : {};
-  const matches = await db.profile.findMany({
-    where: {
-      ...browsableWhere(profile),
-      ...ageFilter,
-      ...(profile.prefMaritalStatus.length ? { maritalStatus: { in: profile.prefMaritalStatus } } : {}),
-      receivedInterests: { none: { fromId: profile.id } },
-    },
-    include: withPhotos,
-    orderBy: { createdAt: "desc" },
-    take: 8,
-  });
+  // All independent queries run in parallel.
+  const [received, accepted, photoCount, connected, matches, views] = await Promise.all([
+    db.interest.count({ where: { toId: profile.id, status: "PENDING" } }),
+    db.interest.count({ where: { status: "ACCEPTED", OR: [{ fromId: profile.id }, { toId: profile.id }] } }),
+    db.photo.count({ where: { profileId: profile.id } }),
+    connectedIds(profile.id),
+    db.profile.findMany({
+      where: {
+        ...browsableWhere(profile),
+        ...ageFilter,
+        ...(profile.prefMaritalStatus.length ? { maritalStatus: { in: profile.prefMaritalStatus } } : {}),
+        receivedInterests: { none: { fromId: profile.id } },
+      },
+      include: withPhotos,
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
+    db.profileView.findMany({
+      where: { viewedId: profile.id, viewer: browsableWhere(profile) },
+      include: { viewer: { include: withPhotos } },
+      orderBy: { viewedAt: "desc" },
+      take: 4,
+    }),
+  ]);
+  const complete = completeness(profile, photoCount);
 
   const [statusLabel, statusText] = STATUS_TEXT[profile.status];
   return (
@@ -74,6 +82,44 @@ export default async function DashboardPage() {
           </Link>
         </Card>
       </div>
+
+      {complete.missing.length > 0 && (
+        <Card>
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="min-w-48 flex-1">
+              <div className="flex items-baseline justify-between">
+                <p className="eyebrow text-gold-dark">Profile strength</p>
+                <p className="font-display text-2xl font-semibold text-maroon">{complete.percent}%</p>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-sand" role="progressbar" aria-valuenow={complete.percent} aria-valuemin={0} aria-valuemax={100} aria-label="Profile strength">
+                <div className="h-full rounded-full bg-gradient-to-r from-gold to-maroon" style={{ width: `${complete.percent}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-stone-500">Complete profiles receive many more interests.</p>
+            </div>
+            <ul className="flex flex-wrap gap-2">
+              {complete.missing.slice(0, 4).map((m) => (
+                <li key={m.label}>
+                  <Link href={m.href} className="inline-block rounded-full border border-gold/50 bg-cream px-3.5 py-1.5 text-xs text-maroon transition hover:bg-gold-light/40">
+                    + {m.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Card>
+      )}
+
+      {views.length > 0 && (
+        <>
+          <div className="pt-6">
+            <p className="eyebrow text-gold-dark">Interest in you</p>
+            <h2 className="mt-1 text-3xl text-maroon">Recently viewed your profile</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {views.map((v) => <ProfileCard key={v.id} profile={v.viewer} photo={cardPhoto(v.viewer, connected)} />)}
+          </div>
+        </>
+      )}
 
       <div className="flex items-end justify-between pt-6">
         <div>

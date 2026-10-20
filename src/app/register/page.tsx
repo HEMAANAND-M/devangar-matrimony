@@ -35,7 +35,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
       </ol>
       <ActionForm action={register} className="space-y-5">
         <TextField label="Mobile number" name="phone" type="tel" inputMode="numeric" placeholder="98765 43210" required autoComplete="tel" defaultValue={phone} hint="Indian mobile number. We'll send an OTP to verify it." />
-        <TextField label="Password" name="password" type="password" minLength={8} required autoComplete="new-password" hint="At least 8 characters" autoFocus={Boolean(phone)} />
+        <TextField label="Password" name="password" type="password" minLength={8} required autoComplete="new-password" hint="At least 8 characters with a letter and a number" autoFocus={Boolean(phone)} />
         <TextField label="Confirm password" name="confirm" type="password" minLength={8} required autoComplete="new-password" />
         <label className="flex items-start gap-3 rounded-lg bg-cream/70 p-3.5 text-sm leading-relaxed text-stone-600">
           <input type="checkbox" name="terms" required className="mt-1 accent-maroon" />
