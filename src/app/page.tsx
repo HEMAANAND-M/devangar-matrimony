@@ -1,103 +1,214 @@
-import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { DotPattern, Mandala, SectionTitle } from "@/components/Ornaments";
+import { getCurrentUser } from "@/lib/session";
 
-export default function Home() {
+const icon = (d: string) => (
+  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d={d} />
+  </svg>
+);
+
+const FEATURES = [
+  [
+    "Community-only",
+    "Profiles from the Devangar community, with gothram, kuladeivam and sub-sect details.",
+    icon("M17 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 10a4 4 0 100-8 4 4 0 000 8zM21 20v-2a4 4 0 00-3-3.9M16 2.1a4 4 0 010 7.8"),
+  ],
+  [
+    "Verified & moderated",
+    "Every mobile number is OTP-verified and every profile and photo is reviewed.",
+    icon("M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3zM9 12l2 2 4-4"),
+  ],
+  [
+    "Horoscope details",
+    "Star, rasi, dosham and birth details on every profile to help families decide.",
+    icon("M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4M12 16a4 4 0 100-8 4 4 0 000 8z"),
+  ],
+  [
+    "Privacy first",
+    "Contact numbers are shared only after both sides accept. Photos can be hidden until then.",
+    icon("M5 11h14v10H5zM8 11V7a4 4 0 018 0v4"),
+  ],
+] as const;
+
+const STEPS = [
+  ["Register free", "Sign up with your mobile number and verify it with an OTP."],
+  ["Create the profile", "Add basic, family, horoscope and partner details, then upload photos."],
+  ["Get approved", "Our team reviews every profile before it appears in search."],
+  ["Connect", "Search by star, age, height and more. Send interest; contacts open once accepted."],
+];
+
+const PRIVACY = [
+  ["Contact details stay private", "Your mobile number is shown only to members whose interest you accept — never in search results."],
+  ["You decide who sees your photos", "Show photos to all members, or only to families you have connected with."],
+  ["Hide your profile any time", "Pause your search with one click and return whenever you are ready."],
+  ["Report & review", "Any member can report a profile. Our team reviews each report and removes misuse."],
+];
+
+const SEARCH_BY = ["Star & rasi", "Age & height", "Mother tongue", "Dosham", "City", "Education", "Marital status", "Profile ID"];
+
+export default async function Home() {
+  if (await getCurrentUser()) redirect("/dashboard");
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="-mt-10">
+      {/* Hero */}
+      <section className="full-bleed relative overflow-hidden bg-gradient-to-br from-maroon-dark via-maroon to-maroon-light text-white">
+        <DotPattern id="hero-dots" className="absolute inset-0 h-full w-full text-gold opacity-[0.12]" />
+        <Mandala className="pointer-events-none absolute -right-40 -top-24 h-[640px] w-[640px] text-gold opacity-25" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 lg:grid-cols-[1fr_400px] lg:py-28">
+          <div>
+            <p className="eyebrow text-gold-light">Exclusively for the Devanga community</p>
+            <h1 className="mt-5 text-5xl leading-[1.05] !text-white sm:text-6xl lg:text-7xl">
+              Where Devangar families <em className="font-medium text-gold-light">begin</em> a new chapter
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/80">
+              A trusted, family-friendly matrimony service for Devanga brides and grooms in Tamil Nadu, Karnataka,
+              Andhra Pradesh and around the world.
+            </p>
+            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-white/85">
+              {["OTP-verified mobiles", "Every profile reviewed", "Photo privacy controls"].map((t) => (
+                <li key={t} className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full border border-gold/60 text-gold-light">
+                    <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M2.5 6.5l2 2 5-5" /></svg>
+                  </span>
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          <form action="/register" className="relative rounded-2xl bg-white p-8 text-ink shadow-lift">
+            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-gold to-transparent" />
+            <p className="eyebrow text-gold-dark">Begin your search</p>
+            <h2 className="mt-2 text-3xl text-maroon">Register free</h2>
+            <p className="mt-2 text-sm text-stone-600">Start with your mobile number — takes under a minute.</p>
+            <label className="mt-6 block text-[0.8rem] font-medium tracking-wide text-stone-600">
+              Mobile number
+              <span className="mt-1.5 flex overflow-hidden rounded-lg border border-hairline bg-cream/40 transition focus-within:border-gold focus-within:bg-white focus-within:ring-4 focus-within:ring-gold/15">
+                <span className="flex items-center border-r border-hairline bg-sand/60 px-3.5 text-sm text-stone-600">+91</span>
+                <input
+                  name="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[6-9][0-9]{9}"
+                  maxLength={10}
+                  placeholder="98765 43210"
+                  required
+                  autoComplete="tel-national"
+                  className="w-full bg-transparent px-3.5 py-3 text-sm focus:outline-none"
+                />
+              </span>
+            </label>
+            <button className="mt-5 w-full rounded-full bg-maroon px-4 py-3.5 text-sm font-medium tracking-wide text-white shadow-soft transition hover:bg-maroon-dark">
+              Get started
+            </button>
+            <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-stone-500">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-gold-dark" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+                <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" />
+              </svg>
+              Your number is never shown publicly
+            </p>
+            <p className="mt-4 border-t border-hairline pt-4 text-center text-sm text-stone-600">
+              Already a member? <Link href="/login" className="font-medium text-maroon underline decoration-gold/50 underline-offset-4 hover:decoration-gold">Log in</Link>
+            </p>
+          </form>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <div className="h-px bg-gradient-to-r from-transparent via-gold/70 to-transparent" />
+      </section>
+
+      {/* Promise */}
+      <section id="verification" className="scroll-mt-24 py-24">
+        <SectionTitle
+          eyebrow="Our promise"
+          title="Built on trust, guided by tradition"
+          subtitle="Every detail is designed so families can search with confidence and members stay in control of their information."
+        />
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map(([title, body, glyph]) => (
+            <div key={title} className="group rounded-2xl border border-hairline bg-white p-7 shadow-soft transition hover:-translate-y-0.5 hover:border-gold/50">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/40 bg-cream text-maroon transition group-hover:bg-maroon group-hover:text-gold-light">
+                {glyph}
+              </span>
+              <h3 className="mt-5 text-2xl text-maroon">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-stone-600">{body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="full-bleed border-y border-hairline bg-white py-24">
+        <div className="mx-auto max-w-6xl px-4">
+          <SectionTitle eyebrow="Simple & secure" title="How it works" />
+          <div className="relative mt-16">
+          <div className="absolute left-[12.5%] right-[12.5%] top-8 hidden h-px bg-gradient-to-r from-gold/0 via-gold/50 to-gold/0 lg:block" aria-hidden />
+          <ol className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map(([title, body], i) => (
+              <li key={title} className="relative text-center">
+                <span className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-gold/50 bg-cream font-display text-3xl font-semibold text-maroon shadow-soft">
+                  {i + 1}
+                </span>
+                <h3 className="mt-5 text-2xl text-ink">{title}</h3>
+                <p className="mx-auto mt-2 max-w-[16rem] text-sm leading-relaxed text-stone-600">{body}</p>
+              </li>
+            ))}
+          </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* Privacy */}
+      <section id="privacy" className="grid scroll-mt-24 items-center gap-14 py-24 lg:grid-cols-2">
+        <div>
+          <p className="eyebrow text-gold-dark">Privacy you control</p>
+          <h2 className="mt-3 text-4xl text-maroon sm:text-5xl">Your family’s details, shared only on your terms</h2>
+          <p className="mt-5 leading-relaxed text-stone-600">
+            Marriage is a personal decision. We keep contact details and photos protected until you choose to connect —
+            and every profile is checked by a person before anyone can see it.
+          </p>
+          <Link href="/safety" className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-maroon underline decoration-gold/50 underline-offset-4 hover:decoration-gold">
+            Read our safety guidelines <span aria-hidden>→</span>
+          </Link>
+        </div>
+        <ul className="space-y-4">
+          {PRIVACY.map(([title, body]) => (
+            <li key={title} className="flex gap-4 rounded-2xl border border-hairline bg-white p-5 shadow-soft">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-maroon text-gold-light">
+                <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M2.5 6.5l2 2 5-5" /></svg>
+              </span>
+              <div>
+                <h3 className="font-sans text-base font-semibold tracking-normal text-ink">{title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-stone-600">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Closing CTA */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-maroon-dark to-maroon px-6 py-20 text-center text-white shadow-lift">
+        <DotPattern id="cta-dots" className="absolute inset-0 h-full w-full text-gold opacity-10" />
+        <Mandala className="pointer-events-none absolute -bottom-48 -left-32 h-[480px] w-[480px] text-gold opacity-20" />
+        <div className="relative">
+          <SectionTitle
+            light
+            eyebrow="Find your perfect match"
+            title="Search the community by what matters to your family"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-2.5 text-sm">
+            {SEARCH_BY.map((s) => (
+              <li key={s} className="rounded-full border border-gold/40 bg-white/5 px-4 py-1.5 text-gold-light backdrop-blur">{s}</li>
+            ))}
+          </ul>
+          <Link
+            href="/register"
+            className="mt-12 inline-block rounded-full bg-gold px-10 py-4 text-sm font-semibold tracking-wide text-maroon-dark shadow-lift transition hover:bg-gold-light"
+          >
+            Register free
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

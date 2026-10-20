@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ProfileFor {
+  SELF
+  SON
+  DAUGHTER
+  BROTHER
+  SISTER
+  RELATIVE
+  FRIEND
+}
+
+enum MaritalStatus {
+  NEVER_MARRIED
+  DIVORCED
+  WIDOWED
+  AWAITING_DIVORCE
+}
+
+enum Dosham {
+  NO
+  YES
+  DONT_KNOW
+}
+
+enum ProfileStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+enum PhotoVisibility {
+  ALL_MEMBERS
+  ACCEPTED_ONLY
+}
+
+enum InterestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  phone         String    @unique
+  email         String?   @unique
+  passwordHash  String
+  role          Role      @default(USER)
+  phoneVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  lastLoginAt   DateTime?
+  profile       Profile?
+  otpCodes      OtpCode[]
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Profile {
+  id     String @id @default(cuid())
+  // Short public ID shown to members, e.g. DM10234
+  code   String @unique
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  profileFor    ProfileFor
+  name          String
+  gender        Gender
+  dateOfBirth   DateTime
+  maritalStatus MaritalStatus
+  heightCm      Int?
+  motherTongue  String
+  subSect       String?
+
+  // Community & horoscope
+  gothram    String?
+  kuladeivam String?
+  star       String?
+  rasi       String?
+  dosham     Dosham  @default(DONT_KNOW)
+  birthPlace String?
+  birthTime  String?
+
+  // Education & career
+  education    String
+  occupation   String
+  annualIncome String?
+
+  // Location
+  city    String
+  state   String @default("Tamil Nadu")
+  country String @default("India")
+
+  // Family
+  fatherOccupation String?
+  motherOccupation String?
+  siblings         String?
+  about            String?
+
+  // Partner preferences
+  prefAgeMin        Int?
+  prefAgeMax        Int?
+  prefMaritalStatus MaritalStatus[]
+  prefNotes         String?
+
+  photoVisibility PhotoVisibility @default(ALL_MEMBERS)
+  status          ProfileStatus   @default(PENDING)
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  photos       Photo[]
+  sentInterests     Interest[]  @relation("InterestFrom")
+  receivedInterests Interest[]  @relation("InterestTo")
+  shortlists        Shortlist[] @relation("ShortlistOwner")
+  shortlistedBy     Shortlist[] @relation("ShortlistTarget")
+  reportsMade       Report[]    @relation("ReportBy")
+  reportsReceived   Report[]    @relation("ReportAgainst")
+
+  @@index([status, gender])
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fileName  String
+  mimeType  String
+  isPrimary Boolean  @default(false)
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+}
+
+model Interest {
+  id        String         @id @default(cuid())
+  fromId    String
+  from      Profile        @relation("InterestFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId      String
+  to        Profile        @relation("InterestTo", fields: [toId], references: [id], onDelete: Cascade)
+  message   String?
+  status    InterestStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([fromId, toId])
+  @@index([toId, status])
+}
+
+model Shortlist {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     Profile  @relation("ShortlistOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    Profile  @relation("ShortlistTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([ownerId, targetId])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  reporter   Profile  @relation("ReportBy", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetId   String
+  target     Profile  @relation("ReportAgainst", fields: [targetId], references: [id], onDelete: Cascade)
+  reason     String
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}

@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Brand */
+  --color-maroon: #5e1229;
+  --color-maroon-dark: #3f0b1b;
+  --color-maroon-light: #7a1d39;
+  --color-gold: #b08d57;
+  --color-gold-dark: #8a6a3b;
+  --color-gold-light: #e9dcc3;
+  /* Neutrals */
+  --color-cream: #faf7f1;
+  --color-sand: #f3ece0;
+  --color-ink: #1e1a17;
+  --color-hairline: #e8e0d3;
+
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-cormorant);
+
+  --shadow-soft: 0 1px 2px rgb(30 26 23 / 0.04), 0 12px 32px -16px rgb(63 11 27 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(30 26 23 / 0.05), 0 24px 48px -20px rgb(63 11 27 / 0.28);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background: #faf7f1;
+    color: #1e1a17;
+    overflow-x: clip;
+  }
+
+  h1,
+  h2,
+  h3 {
+    /* The next/font variable directly: `inline` theme tokens are not emitted as CSS variables. */
+    font-family: var(--font-cormorant), Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #1e1a17;
+  }
+
+  ::selection {
+    background: #e9dcc3;
+    color: #3f0b1b;
+  }
+
+  :focus-visible {
+    outline: 2px solid #b08d57;
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility full-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+/* Small letter-spaced caps used for eyebrows and labels. */
+@utility eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Thin gold rule with a centred diamond, used under section titles. */
+@utility ornament {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #b08d57;
+  &::before,
+  &::after {
+    content: "";
+    height: 1px;
+    width: 3rem;
+    background: linear-gradient(to right, transparent, currentColor);
+  }
+  &::after {
+    background: linear-gradient(to left, transparent, currentColor);
+  }
 }

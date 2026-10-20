@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# member photo uploads
+/uploads
+
+# keep the template
+!.env.example

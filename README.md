@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Devangar Matrimony
 
-## Getting Started
+Matrimony web app for the Devangar (Devanga) community. Built with Next.js 15 (App Router), PostgreSQL, Prisma and Tailwind CSS.
 
-First, run the development server:
+![Devangar Matrimony home page](docs/screenshots/home.png)
+
+## Live demo (runs on GitHub)
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/HEMAANAND-M/devangar-matrimony?quickstart=1)
+
+1. Click the button above (you need a GitHub account; personal accounts include free Codespaces hours).
+2. Wait 2–3 minutes while the Codespace installs packages, creates the database and loads demo data.
+3. The app opens in a new browser tab. If it doesn't, open the **Ports** tab and click the globe icon next to port 3000.
+4. Log in with a demo account (type the 10-digit number):
+
+| Role         | Mobile                    | Password     |
+| ------------ | ------------------------- | ------------ |
+| Admin        | `9000000000`              | `admin12345` |
+| Demo brides  | `9000000100` – `9000000102` | `demo12345`  |
+| Demo grooms  | `9000000103` – `9000000105` | `demo12345`  |
+
+When you register a new account, the OTP is printed in the Codespace **terminal** (no SMS is sent in the demo).
+
+To stop using free hours, stop the Codespace from <https://github.com/codespaces> when you are done.
+
+## Screenshots
+
+| Login | Register | Mobile |
+| ----- | -------- | ------ |
+| ![Login](docs/screenshots/login.png) | ![Register](docs/screenshots/register.png) | ![Mobile home](docs/screenshots/home-mobile.png) |
+
+## Features (MVP)
+
+- Registration with mobile number + password and OTP verification
+- Detailed profiles: gothram, kuladeivam, sub-sect, star, rasi, dosham, birth details, education, family, partner preferences
+- Up to 6 photos per profile, stored outside `public/` and served only through an access-checked route
+- Photo privacy: visible to all members, or only after an interest is accepted
+- Search by age, star, mother tongue, marital status, city, education and profile ID
+- Recommended matches on the dashboard based on partner preferences
+- Send / accept / decline / withdraw interests; contact number revealed only after acceptance
+- Shortlist, hide/unhide profile, report a profile
+- Admin panel: approve/reject profiles and photos, handle reports
+
+## Setup
+
+Requirements: Node.js 20+ and PostgreSQL 14+.
 
 ```bash
+npm install
+cp .env.example .env        # then fill in DATABASE_URL and SESSION_SECRET
+npx prisma migrate dev --name init
+npm run db:seed             # admin account + 6 demo profiles
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Seeded logins (development only):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role  | Mobile           | Password     |
+| ----- | ---------------- | ------------ |
+| Admin | +919000000000    | admin12345   |
+| Demo  | +919000000100–105 | demo12345   |
 
-## Learn More
+Log in with the 10-digit number (e.g. `9000000000`).
 
-To learn more about Next.js, take a look at the following resources:
+### OTP in development
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+No SMS provider is wired up yet. The OTP is printed in the terminal running `npm run dev`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+[OTP] +919876543210: 123456
+```
 
-## Deploy on Vercel
+To send real SMS, implement `deliverSms` in `src/lib/otp.ts` (MSG91, Twilio, Fast2SMS…) and set `SMS_PROVIDER`. Production refuses to send OTPs until this is configured.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project layout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+prisma/schema.prisma      data model
+prisma/seed.ts            admin + demo data
+src/app/actions/          server actions (auth, profile, interactions, admin)
+src/app/api/photos/[id]   authenticated photo delivery
+src/lib/                  session, OTP, access rules, helpers
+src/components/           shared UI
+```
+
+## Next steps before launch
+
+- Real SMS provider for OTP, and rate limiting on login/OTP by IP
+- Password reset via OTP
+- Razorpay premium plans (e.g. contact views limited to paid members)
+- In-app chat between connected members
+- Horoscope (porutham) matching
+- Email/SMS notifications for new interests
+- Object storage (S3/R2) for photos instead of local disk
+- Terms of service, privacy policy and compliance with India's DPDP Act 2023
