@@ -12,6 +12,17 @@ export const TEMPLATES = {
   interest_accepted: ["name", "byCode", "link"],
   profile_approved: ["name", "link"],
   weekly_matches: ["name", "count", "link"],
+  profile_rejected: ["name", "reason", "link"],
+  photo_rejected: ["name", "reason", "link"],
+  id_verified: ["name", "link"],
+  photo_verified: ["name", "link"],
+  premium_activated: ["name", "until", "link"],
+  message_received: ["name", "fromCode", "link"],
+  contact_request: ["name", "fromCode", "link"],
+  contact_approved: ["name", "byCode", "link"],
+  saved_search_matches: ["name", "count", "search", "link"],
+  ticket_reply: ["name", "subject", "link"],
+  account_suspended: ["name", "reason"],
 } as const;
 export type Template = keyof typeof TEMPLATES;
 
