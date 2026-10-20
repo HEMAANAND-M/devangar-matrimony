@@ -3,12 +3,14 @@ import { respondInterest, withdrawInterest } from "@/app/actions/interactions";
 import { Card, PageHeader } from "@/components/Card";
 import { db } from "@/lib/db";
 import { ageFrom } from "@/lib/format";
-import { requireProfile } from "@/lib/session";
+import { isPremium } from "@/lib/premium";
+import { isStaff, requireProfile } from "@/lib/session";
 
 export const metadata = { title: "Interests" };
 
 export default async function InterestsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const { profile } = await requireProfile();
+  const { user, profile } = await requireProfile();
+  const premium = isPremium(profile) || isStaff(user);
   const tab = (await searchParams).tab === "sent" ? "sent" : "received";
 
   const interests = await db.interest.findMany({
@@ -42,7 +44,14 @@ export default async function InterestsPage({ searchParams }: { searchParams: Pr
                 </p>
                 {i.message && <p className="mt-2 text-sm italic text-stone-700">“{i.message}”</p>}
                 {i.status === "ACCEPTED" && (
-                  <p className="mt-2 text-sm">Contact: <a className="font-medium text-maroon" href={`tel:${other.user.phone}`}>{other.user.phone}</a></p>
+                  premium ? (
+                    <p className="mt-2 text-sm">Contact: <a className="font-medium text-maroon" href={`tel:${other.user.phone}`}>{other.user.phone}</a></p>
+                  ) : (
+                    <p className="mt-2 text-sm text-stone-600">
+                      Connected ·{" "}
+                      <Link href="/upgrade" className="font-medium text-maroon underline decoration-gold/50 underline-offset-4">Upgrade to view contact</Link>
+                    </p>
+                  )
                 )}
               </div>
               <div className="flex items-center gap-2 text-sm">

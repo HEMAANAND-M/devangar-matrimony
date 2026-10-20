@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { blockFromForm, reportProfile, sendInterest, toggleShortlist } from "@/app/actions/interactions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import Link from "next/link";
+import { IdVerifiedBadge, PremiumBadge } from "@/components/Badges";
 import { Card } from "@/components/Card";
+import { ProtectedPhoto } from "@/components/ProtectedPhoto";
 import { PoruthamCard } from "@/components/PoruthamCard";
 import { TextArea } from "@/components/fields";
 import { isBlocked, isConnected, visiblePhotos } from "@/lib/access";
@@ -10,8 +13,9 @@ import { DOSHAM_LABELS, MARITAL_STATUS_LABELS, PROFILE_FOR_LABELS } from "@/lib/
 import { db } from "@/lib/db";
 import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
 import { porutham } from "@/lib/porutham";
+import { isPremium } from "@/lib/premium";
 import { withPhotos } from "@/lib/queries";
-import { requireProfile } from "@/lib/session";
+import { isStaff, requireProfile } from "@/lib/session";
 
 function Facts({ rows }: { rows: [string, string | null | undefined][] }) {
   if (!rows.some(([, v]) => v)) return <p className="text-sm italic text-stone-400">Not added yet</p>;
@@ -35,7 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<{ code: str
 export default async function ProfilePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const { user, profile: me } = await requireProfile();
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = isStaff(user);
 
   const p = await db.profile.findUnique({ where: { code }, include: { ...withPhotos, user: { select: { phone: true } } } });
   const isSelf = p?.id === me.id;
@@ -69,10 +73,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
         <div className="overflow-hidden rounded-2xl border border-hairline bg-white shadow-soft">
           {photos.length ? (
             <div className="grid gap-1">
-              {photos.map((ph) => (
-                // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
-                <img key={ph.id} src={photoUrl(ph.id)} alt={p.name} decoding="async" className="w-full object-cover" />
-              ))}
+              {photos.map((ph) =>
+                isSelf ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
+                  <img key={ph.id} src={photoUrl(ph.id)} alt={p.name} decoding="async" className="w-full object-cover" />
+                ) : (
+                  <ProtectedPhoto key={ph.id} src={photoUrl(ph.id)} alt={p.name} />
+                ),
+              )}
             </div>
           ) : (
             <div className="flex aspect-[4/5] items-center justify-center bg-stone-100 p-6 text-center text-sm text-stone-500">
@@ -86,7 +94,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
             {connected ? (
               <div className="text-sm">
                 <p className="font-semibold text-green-700">You are connected</p>
-                <p className="mt-1">Contact: <a href={`tel:${p.user.phone}`} className="font-medium text-maroon">{p.user.phone}</a></p>
+                {isPremium(me) || isAdmin ? (
+                  <p className="mt-1">Contact: <a href={`tel:${p.user.phone}`} className="font-medium text-maroon">{p.user.phone}</a></p>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-gold/40 bg-cream p-4">
+                    <p className="text-stone-700">
+                      Contact: <span className="font-medium tracking-widest text-stone-400 blur-[3px]" aria-hidden>+91 98XXX XXXXX</span>
+                    </p>
+                    <Link href="/upgrade" className="mt-3 inline-block rounded-full bg-maroon px-5 py-2 text-xs font-medium text-white shadow-soft hover:bg-maroon-dark">
+                      Upgrade to Premium to view contact
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : sent ? (
               <p className="text-sm text-stone-700">Interest sent · {sent.status.toLowerCase()}</p>
@@ -117,6 +136,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
                 ✓ Verified
               </span>
             )}
+            {p.idVerifiedAt && <IdVerifiedBadge />}
+            {isPremium(p) && <PremiumBadge />}
           </h1>
           <p className="mt-2 text-stone-600">
             {ageFrom(p.dateOfBirth)} yrs · {p.occupation} · {p.city}, {p.state}

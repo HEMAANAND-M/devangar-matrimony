@@ -41,6 +41,10 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
           <input type="checkbox" name="terms" required className="mt-1 accent-maroon" />
           I confirm the profile is for a member of the Devangar community and I agree to the terms and privacy policy.
         </label>
+        <label className="flex items-start gap-3 px-3.5 text-sm leading-relaxed text-stone-600">
+          <input type="checkbox" name="whatsapp" className="mt-1 accent-maroon" />
+          Send me updates on WhatsApp — new interests, acceptances and weekly matches. You can turn this off any time.
+        </label>
         <SubmitButton className="w-full py-3.5">Register &amp; send OTP</SubmitButton>
       </ActionForm>
       <p className="mt-8 border-t border-hairline pt-6 text-center text-sm text-stone-600">

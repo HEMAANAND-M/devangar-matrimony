@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Photo, Profile } from "@prisma/client";
 import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
+import { isPremium } from "@/lib/premium";
+import { IdVerifiedBadge, PremiumBadge } from "./Badges";
 
 export type CardProfile = Profile & { photos: Photo[] };
 
@@ -23,8 +25,9 @@ export function ProfileCard({ profile, photo }: { profile: CardProfile; photo?: 
             src={photoUrl(photo.id, "thumb")}
             loading="lazy"
             decoding="async"
+            draggable={false}
             alt={profile.name}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+            className="pointer-events-none h-full w-full select-none object-cover transition duration-500 group-hover:scale-[1.03]"
           />
         ) : (
           <span className="font-display text-7xl font-medium text-gold/70">{profile.name.charAt(0)}</span>
@@ -58,6 +61,12 @@ export function ProfileCard({ profile, photo }: { profile: CardProfile; photo?: 
       <div className="p-4">
         <p className="font-display text-xl font-semibold leading-tight text-ink transition group-hover:text-maroon">{profile.name}</p>
         <p className="mt-0.5 text-xs tracking-wide text-gold-dark">{profile.code}</p>
+        {(isPremium(profile) || profile.idVerifiedAt) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {isPremium(profile) && <PremiumBadge small />}
+            {profile.idVerifiedAt && <IdVerifiedBadge small />}
+          </div>
+        )}
         <div className="my-3 h-px bg-hairline" />
         <p className="text-sm text-stone-700">
           {ageFrom(profile.dateOfBirth)} yrs{height ? ` · ${height}` : ""}

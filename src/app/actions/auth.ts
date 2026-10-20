@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { normalizePhone } from "@/lib/format";
@@ -36,7 +37,7 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
     return { error: "This number is already registered. Please log in." };
   }
   const user = await db.user.create({
-    data: { phone, passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) },
+    data: { phone, passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS), whatsappOptIn: fd.get("whatsapp") === "on" },
   });
   await createSession(user.id, user.sessionVersion);
   await issueOtp(user.id, phone);
@@ -164,4 +165,10 @@ export async function deleteAccount(_: FormState, fd: FormData): Promise<FormSta
   await db.user.delete({ where: { id: user.id } });
   await destroySession();
   redirect("/?deleted=1");
+}
+
+export async function setWhatsappOptIn(optIn: boolean) {
+  const user = await requireUser();
+  await db.user.update({ where: { id: user.id }, data: { whatsappOptIn: optIn } });
+  revalidatePath("/settings");
 }

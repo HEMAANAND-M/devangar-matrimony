@@ -62,6 +62,19 @@ async function main() {
     });
   }
   console.log("Demo members: +919000000100 … +919000000105 / demo12345");
+
+  await db.user.upsert({
+    where: { phone: "+919000000001" },
+    update: { role: "MODERATOR" },
+    create: { phone: "+919000000001", passwordHash: await bcrypt.hash("moderator123", 10), role: "MODERATOR", phoneVerified: true },
+  });
+  console.log("Moderator: +919000000001 / moderator123");
+
+  // Showcase badges: one premium member, one ID-verified member.
+  const inSixMonths = new Date();
+  inSixMonths.setMonth(inSixMonths.getMonth() + 6);
+  await db.profile.updateMany({ where: { code: "DM90005", premiumUntil: null }, data: { premiumUntil: inSixMonths } });
+  await db.profile.updateMany({ where: { code: { in: ["DM90002", "DM90005"] }, idVerifiedAt: null }, data: { idVerifiedAt: new Date() } });
 }
 
 main().finally(() => db.$disconnect());

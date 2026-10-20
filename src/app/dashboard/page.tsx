@@ -4,6 +4,7 @@ import { Card, PageHeader } from "@/components/Card";
 import { ProfileCard, cardPhoto } from "@/components/ProfileCard";
 import { connectedIds } from "@/lib/access";
 import { completeness } from "@/lib/completeness";
+import { PREMIUM_BENEFITS, isPremium } from "@/lib/premium";
 import { db } from "@/lib/db";
 import { dobRangeForAges } from "@/lib/format";
 import { browsableWhere, withPhotos } from "@/lib/queries";
@@ -19,7 +20,7 @@ const STATUS_TEXT = {
 } as const;
 
 export default async function DashboardPage() {
-  const { profile } = await requireProfile();
+  const { user, profile } = await requireProfile();
   const ageFilter =
     profile.prefAgeMin || profile.prefAgeMax
       ? { dateOfBirth: dobRangeForAges(profile.prefAgeMin ?? 18, profile.prefAgeMax ?? 80) }
@@ -53,7 +54,11 @@ export default async function DashboardPage() {
   const [statusLabel, statusText] = STATUS_TEXT[profile.status];
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={`Profile ${profile.code}`} title={`Welcome, ${profile.name.split(" ")[0]}`} subtitle="Here is what is happening with your search today." />
+      <PageHeader
+        eyebrow={user.isFamilyManager ? `Managing profile ${profile.code}` : `Profile ${profile.code}`}
+        title={user.isFamilyManager ? `${profile.name.split(" ")[0]}’s search` : `Welcome, ${profile.name.split(" ")[0]}`}
+        subtitle="Here is what is happening with your search today."
+      />
       <div className="grid gap-5 sm:grid-cols-3">
         <Card>
           <p className="eyebrow text-gold-dark">Profile status</p>
@@ -107,6 +112,27 @@ export default async function DashboardPage() {
             </ul>
           </div>
         </Card>
+      )}
+
+      {(!isPremium(profile) || !profile.idVerifiedAt) && (
+        <div className="grid gap-5 md:grid-cols-2">
+          {!isPremium(profile) && (
+            <Link href="/upgrade" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-maroon-dark to-maroon p-6 text-white shadow-lift transition hover:-translate-y-0.5">
+              <p className="eyebrow text-gold-light">Premium</p>
+              <p className="mt-2 font-display text-2xl font-semibold">See contact numbers of accepted matches</p>
+              <p className="mt-1 text-sm text-white/75">{PREMIUM_BENEFITS[1]}</p>
+              <span className="mt-4 inline-block rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-maroon-dark">View plans →</span>
+            </Link>
+          )}
+          {!profile.idVerifiedAt && (
+            <Link href="/verify-id" className="group rounded-2xl border border-sky-200 bg-white p-6 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-300">
+              <p className="eyebrow text-sky-800">Trust badge</p>
+              <p className="mt-2 font-display text-2xl font-semibold text-ink">Get the “ID verified” badge</p>
+              <p className="mt-1 text-sm text-stone-600">Upload a government ID — deleted right after review. Families trust verified profiles more.</p>
+              <span className="mt-4 inline-block text-sm font-medium text-sky-800">Verify now →</span>
+            </Link>
+          )}
+        </div>
       )}
 
       {views.length > 0 && (

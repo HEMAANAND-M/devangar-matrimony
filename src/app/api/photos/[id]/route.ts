@@ -1,6 +1,6 @@
 import { isBlocked, isConnected, visiblePhotos } from "@/lib/access";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, isStaff } from "@/lib/session";
 
 const NOT_FOUND = () => new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
 
@@ -16,7 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   });
   if (!photo) return NOT_FOUND();
 
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = isStaff(user);
   const viewerProfileId = user.profile?.id;
   const isOwner = viewerProfileId === photo.profileId;
   if (!isAdmin && !isOwner) {

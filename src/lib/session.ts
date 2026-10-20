@@ -48,15 +48,32 @@ async function readSession(): Promise<{ userId: string; version: number } | null
   }
 }
 
-/** Current user, memoised per request so layout + page share one query. */
+/**
+ * Current user, memoised per request so layout + page share one query.
+ * `profile` is the member's own profile or, for a family member, the profile they manage;
+ * `isFamilyManager` tells the two apart.
+ */
 export const getCurrentUser = cache(async () => {
   const session = await readSession();
   if (!session) return null;
-  const user = await db.user.findUnique({ where: { id: session.userId }, include: { profile: true } });
+  const user = await db.user.findUnique({
+    where: { id: session.userId },
+    include: { profile: true, managing: { include: { profile: true } } },
+  });
   // Reject sessions issued before a password change or "log out everywhere".
   if (!user || user.sessionVersion !== session.version) return null;
-  return user;
+  const { managing, profile, ...rest } = user;
+  return {
+    ...rest,
+    profile: profile ?? managing?.profile ?? null,
+    isFamilyManager: !profile && !!managing,
+    managing,
+  };
 });
+
+export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
+export const isStaff = (user: { role: string }) => user.role === "ADMIN" || user.role === "MODERATOR";
 
 /** Signed-in user with a verified phone; redirects otherwise. */
 export async function requireUser() {
@@ -73,6 +90,14 @@ export async function requireProfile() {
   return { user, profile: user.profile };
 }
 
+/** Admins and moderators: profile, photo and report moderation. */
+export async function requireStaff() {
+  const user = await requireUser();
+  if (!isStaff(user)) redirect("/dashboard");
+  return user;
+}
+
+/** Admins only: payments, ID documents, staff management and the audit log. */
 export async function requireAdmin() {
   const user = await requireUser();
   if (user.role !== "ADMIN") redirect("/dashboard");

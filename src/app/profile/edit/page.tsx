@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { acceptFamilyInvite, declineFamilyInvite } from "@/app/actions/family";
 import { saveProfile } from "@/app/actions/profile";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Card, PageHeader } from "@/components/Card";
@@ -6,6 +7,7 @@ import { SelectField, TextArea, TextField } from "@/components/fields";
 import {
   DOSHAM_LABELS, MARITAL_STATUS_LABELS, MOTHER_TONGUES, PROFILE_FOR_LABELS, RASIS, STARS,
 } from "@/lib/constants";
+import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 
 export const metadata = { title: "My profile" };
@@ -14,6 +16,13 @@ export default async function EditProfilePage() {
   const user = await requireUser();
   const p = user.profile;
   const v = (x: string | number | null | undefined) => (x == null ? undefined : String(x));
+  // Someone without a profile may have been invited to manage a family member's profile instead.
+  const invites = p
+    ? []
+    : await db.familyInvite.findMany({
+        where: { phone: user.phone, expiresAt: { gt: new Date() } },
+        include: { profile: { select: { name: true, code: true } } },
+      });
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -23,6 +32,25 @@ export default async function EditProfilePage() {
         subtitle="A complete, honest profile helps families decide with confidence."
         action={p && <Link href="/photos" className="rounded-full border border-gold/60 px-5 py-2 text-sm text-maroon transition hover:bg-gold-light/30">Manage photos</Link>}
       />
+      {invites.map((i) => (
+        <section key={i.id} className="rounded-2xl border border-gold bg-gradient-to-br from-white to-cream p-6 shadow-soft">
+          <p className="eyebrow text-gold-dark">Family invitation</p>
+          <h2 className="mt-1 text-2xl text-maroon">Manage {i.profile.name}’s profile?</h2>
+          <p className="mt-2 text-sm text-stone-600">
+            {i.profile.name} ({i.profile.code}) invited you as their {i.relation.toLowerCase()}. You’ll be able to search,
+            send and accept interests for them with your own login.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <form action={acceptFamilyInvite.bind(null, i.id)}>
+              <button className="rounded-full bg-maroon px-6 py-2.5 text-sm font-medium text-white shadow-soft hover:bg-maroon-dark">Accept invitation</button>
+            </form>
+            <form action={declineFamilyInvite.bind(null, i.id)}>
+              <button className="rounded-full border border-hairline px-6 py-2.5 text-sm text-stone-700 hover:border-gold">Decline</button>
+            </form>
+          </div>
+          <p className="mt-4 text-xs text-stone-500">Or ignore this and create your own profile below.</p>
+        </section>
+      ))}
       {p?.status === "REJECTED" && p.rejectionReason && (
         <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           Your profile needs changes: {p.rejectionReason}

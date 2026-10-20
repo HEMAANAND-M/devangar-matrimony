@@ -13,9 +13,11 @@ export function middleware(request: NextRequest) {
     // 'strict-dynamic' lets nonce-approved scripts load their chunks; dev needs eval for fast refresh.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: https://*.razorpay.com",
     "font-src 'self'",
-    `connect-src 'self'${dev ? " ws: wss:" : ""}`,
+    `connect-src 'self' https://*.razorpay.com${dev ? " ws: wss:" : ""}`,
+    // Razorpay Checkout renders its payment form in an iframe.
+    "frame-src https://api.razorpay.com https://checkout.razorpay.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

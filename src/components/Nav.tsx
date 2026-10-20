@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
-import { getCurrentUser } from "@/lib/session";
+import { isPremium } from "@/lib/premium";
+import { getCurrentUser, isStaff } from "@/lib/session";
 import { Logo } from "./Logo";
 import { NavLinks } from "./NavLinks";
 
@@ -14,7 +15,7 @@ export async function Nav() {
         ["/shortlist", "Shortlist"],
         ["/profile/edit", "My profile"],
         ["/settings", "Settings"],
-        ...(user.role === "ADMIN" ? ([["/admin", "Admin"]] as [string, string][]) : []),
+        ...(isStaff(user) ? ([["/admin", user.role === "ADMIN" ? "Admin" : "Moderation"]] as [string, string][]) : []),
       ]
     : [];
 
@@ -28,6 +29,11 @@ export async function Nav() {
         Register free
       </Link>
     </>
+  );
+  const upgrade = user?.profile && !isPremium(user.profile) && (
+    <Link href="/upgrade" className="rounded-full bg-gradient-to-r from-gold-dark via-gold to-gold-dark px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:brightness-105">
+      Upgrade
+    </Link>
   );
   const logoutButton = (
     <form action={logout}>
@@ -46,10 +52,10 @@ export async function Nav() {
         </Link>
 
         {/* Desktop */}
-        <div className="hidden items-center gap-5 lg:flex">
+        <div className="hidden items-center gap-4 xl:gap-5 lg:flex">
           <NavLinks links={links} />
         </div>
-        <div className="hidden items-center gap-2 lg:flex">{user ? logoutButton : signedOut}</div>
+        <div className="hidden items-center gap-2 lg:flex">{user ? <>{upgrade}{logoutButton}</> : signedOut}</div>
 
         {/* Mobile */}
         <details className="group relative lg:hidden">
@@ -61,7 +67,7 @@ export async function Nav() {
           </summary>
           <div className="absolute right-0 mt-3 flex w-64 flex-col gap-1 rounded-2xl border border-hairline bg-white p-4 shadow-lift">
             <NavLinks links={links} />
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">{user ? logoutButton : signedOut}</div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">{user ? <>{upgrade}{logoutButton}</> : signedOut}</div>
           </div>
         </details>
       </nav>

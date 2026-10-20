@@ -9,7 +9,45 @@ datasource db {
 
 enum Role {
   USER
+  /// Staff who can moderate profiles, photos and reports, but not payments, ID documents or staff.
+  MODERATOR
   ADMIN
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+}
+
+enum IdDocType {
+  AADHAAR
+  PAN
+  PASSPORT
+  VOTER_ID
+  DRIVING_LICENCE
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FamilyRelation {
+  FATHER
+  MOTHER
+  BROTHER
+  SISTER
+  GUARDIAN
+  OTHER
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  NOT_CONFIGURED
 }
 
 enum Gender {
@@ -59,19 +97,111 @@ enum InterestStatus {
 }
 
 model User {
-  id             String     @id @default(cuid())
-  phone          String     @unique
-  email          String?    @unique
+  id             String          @id @default(cuid())
+  phone          String          @unique
+  email          String?         @unique
   passwordHash   String
-  role           Role       @default(USER)
-  phoneVerified  Boolean    @default(false)
+  role           Role            @default(USER)
+  phoneVerified  Boolean         @default(false)
   // Bumped on password change / "log out everywhere"; sessions carrying an older value are rejected.
-  sessionVersion Int        @default(0)
-  createdAt      DateTime   @default(now())
+  sessionVersion Int             @default(0)
+  createdAt      DateTime        @default(now())
   lastLoginAt    DateTime?
+  /// Explicit consent to receive WhatsApp updates (required by WhatsApp and the DPDP Act).
+  whatsappOptIn  Boolean         @default(false)
   profile        Profile?
+  /// Set when this account is a family member managing someone else's profile.
+  managing       ProfileManager?
   otpCodes       OtpCode[]
   adminLogs      AdminLog[]
+  payments       Payment[]
+  notifications  Notification[]
+}
+
+/// A family member's account with access to manage another member's profile.
+model ProfileManager {
+  id        String         @id @default(cuid())
+  profileId String
+  profile   Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relation  FamilyRelation
+  createdAt DateTime       @default(now())
+
+  @@index([profileId])
+}
+
+/// Pending invitation, bound to the invitee's mobile number (proven by OTP when they register).
+model FamilyInvite {
+  id        String         @id @default(cuid())
+  profileId String
+  profile   Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  phone     String
+  relation  FamilyRelation
+  expiresAt DateTime
+  createdAt DateTime       @default(now())
+
+  @@unique([profileId, phone])
+  @@index([phone])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  /// Kept (unlinked) after account deletion: payment records must be retained for tax purposes.
+  profileId         String?
+  profile           Profile?      @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  paidById          String?
+  paidBy            User?         @relation(fields: [paidById], references: [id], onDelete: SetNull)
+  plan              String
+  months            Int
+  /// Amount in paise.
+  amount            Int
+  currency          String        @default("INR")
+  status            PaymentStatus @default(CREATED)
+  /// True for no-charge demo checkouts used before Razorpay keys are configured.
+  demo              Boolean       @default(false)
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?       @unique
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+
+  @@index([profileId, createdAt])
+  @@index([status, paidAt])
+}
+
+model IdVerification {
+  id              String             @id @default(cuid())
+  profileId       String
+  profile         Profile            @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  docType         IdDocType
+  /// Only the last four characters are ever stored.
+  last4           String
+  status          VerificationStatus @default(PENDING)
+  rejectionReason String?
+  /// AES-256-GCM encrypted document; set to null as soon as it is reviewed.
+  document        Bytes?
+  documentMime    String?
+  createdAt       DateTime           @default(now())
+  reviewedAt      DateTime?
+  reviewedById    String?
+
+  @@index([status, createdAt])
+  @@index([profileId])
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template  String
+  params    Json
+  status    NotificationStatus @default(PENDING)
+  error     String?
+  createdAt DateTime           @default(now())
+  sentAt    DateTime?
+
+  @@index([userId, template, createdAt])
+  @@index([createdAt])
 }
 
 /**
@@ -154,6 +284,10 @@ model Profile {
   prefMaritalStatus MaritalStatus[]
   prefNotes         String?
 
+  /// Premium membership end date; null or past means free.
+  premiumUntil    DateTime?
+  /// Set when an ID document has been approved by an admin.
+  idVerifiedAt    DateTime?
   photoVisibility PhotoVisibility @default(ALL_MEMBERS)
   status          ProfileStatus   @default(PENDING)
   rejectionReason String?
@@ -161,16 +295,20 @@ model Profile {
   updatedAt       DateTime        @updatedAt
 
   photos            Photo[]
-  sentInterests     Interest[]    @relation("InterestFrom")
-  receivedInterests Interest[]    @relation("InterestTo")
-  shortlists        Shortlist[]   @relation("ShortlistOwner")
-  shortlistedBy     Shortlist[]   @relation("ShortlistTarget")
-  reportsMade       Report[]      @relation("ReportBy")
-  reportsReceived   Report[]      @relation("ReportAgainst")
-  blocksMade        Block[]       @relation("BlockBy")
-  blocksReceived    Block[]       @relation("BlockAgainst")
-  viewsMade         ProfileView[] @relation("ViewBy")
-  viewsReceived     ProfileView[] @relation("ViewOf")
+  sentInterests     Interest[]       @relation("InterestFrom")
+  receivedInterests Interest[]       @relation("InterestTo")
+  shortlists        Shortlist[]      @relation("ShortlistOwner")
+  shortlistedBy     Shortlist[]      @relation("ShortlistTarget")
+  reportsMade       Report[]         @relation("ReportBy")
+  reportsReceived   Report[]         @relation("ReportAgainst")
+  blocksMade        Block[]          @relation("BlockBy")
+  blocksReceived    Block[]          @relation("BlockAgainst")
+  viewsMade         ProfileView[]    @relation("ViewBy")
+  viewsReceived     ProfileView[]    @relation("ViewOf")
+  managers          ProfileManager[]
+  familyInvites     FamilyInvite[]
+  payments          Payment[]
+  idVerifications   IdVerification[]
 
   @@index([status, gender, dateOfBirth])
   @@index([status, gender, updatedAt])

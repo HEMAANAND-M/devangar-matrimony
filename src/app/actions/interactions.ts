@@ -5,11 +5,11 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { type FormState, str } from "@/lib/form";
 import { findContactInfo } from "@/lib/moderation";
+import { link, notifyProfile } from "@/lib/notify";
+import { FREE_DAILY_INTERESTS, dailyInterestLimit, isPremium } from "@/lib/premium";
 import { browsableWhere } from "@/lib/queries";
 import { HOUR, RATE_LIMITED, rateLimitAll } from "@/lib/rate-limit";
 import { requireProfile } from "@/lib/session";
-
-const DAILY_INTEREST_LIMIT = 20;
 
 type Viewer = Awaited<ReturnType<typeof requireProfile>>["profile"];
 
@@ -28,7 +28,13 @@ export async function sendInterest(targetId: string, _: FormState, fd: FormData)
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sentToday = await db.interest.count({ where: { fromId: profile.id, createdAt: { gte: since } } });
-  if (sentToday >= DAILY_INTEREST_LIMIT) return { error: "Daily interest limit reached. Try again tomorrow." };
+  if (sentToday >= dailyInterestLimit(profile)) {
+    return {
+      error: isPremium(profile)
+        ? "Daily interest limit reached. Try again tomorrow."
+        : `Free members can send ${FREE_DAILY_INTERESTS} interests a day. Upgrade to Premium to send more.`,
+    };
+  }
 
   const message = str(fd, "message").slice(0, 300) || null;
   const found = findContactInfo(message);
@@ -37,21 +43,27 @@ export async function sendInterest(targetId: string, _: FormState, fd: FormData)
   const reverse = await db.interest.findUnique({ where: { fromId_toId: { fromId: target.id, toId: profile.id } } });
   if (reverse) return { error: "This member has already sent you an interest. Respond to it from Interests." };
 
-  await db.interest.upsert({
-    where: { fromId_toId: { fromId: profile.id, toId: target.id } },
-    create: { fromId: profile.id, toId: target.id, message },
-    update: {},
-  });
+  const existing = await db.interest.findUnique({ where: { fromId_toId: { fromId: profile.id, toId: target.id } } });
+  if (!existing) {
+    await db.interest.create({ data: { fromId: profile.id, toId: target.id, message } });
+    await notifyProfile(target.id, "interest_received", { name: target.name.split(" ")[0], fromCode: profile.code, link: link("/interests") });
+  }
   revalidatePath(`/profiles/${target.code}`);
   return { message: "Interest sent." };
 }
 
 export async function respondInterest(interestId: string, accept: boolean) {
   const { profile } = await requireProfile();
-  await db.interest.updateMany({
+  const updated = await db.interest.updateMany({
     where: { id: interestId, toId: profile.id, status: "PENDING" },
     data: { status: accept ? "ACCEPTED" : "DECLINED" },
   });
+  if (updated.count && accept) {
+    const interest = await db.interest.findUnique({ where: { id: interestId }, include: { from: { select: { id: true, name: true } } } });
+    if (interest) {
+      await notifyProfile(interest.from.id, "interest_accepted", { name: interest.from.name.split(" ")[0], byCode: profile.code, link: link(`/profiles/${profile.code}`) });
+    }
+  }
   revalidatePath("/interests");
 }
 
