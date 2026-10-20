@@ -41,7 +41,7 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   });
   await createSession(user.id, user.sessionVersion);
   await issueOtp(user.id, phone);
-  redirect("/verify");
+  return { redirect: "/verify" };
 }
 
 export async function login(_: FormState, fd: FormData): Promise<FormState> {
@@ -63,9 +63,9 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   await createSession(user.id, user.sessionVersion);
   if (!user.phoneVerified) {
     await issueOtp(user.id, user.phone);
-    redirect("/verify");
+    return { redirect: "/verify" };
   }
-  redirect("/dashboard");
+  return { redirect: "/dashboard" };
 }
 
 export async function verifyOtp(_: FormState, fd: FormData): Promise<FormState> {
@@ -77,7 +77,7 @@ export async function verifyOtp(_: FormState, fd: FormData): Promise<FormState> 
   const result = await checkOtp(user.id, code);
   if (!result.ok) return { error: result.error };
   await db.user.update({ where: { id: user.id }, data: { phoneVerified: true } });
-  redirect(user.profile ? "/dashboard" : "/profile/edit");
+  return { redirect: user.profile ? "/dashboard" : "/profile/edit" };
 }
 
 export async function resendOtp(): Promise<FormState> {
@@ -87,9 +87,9 @@ export async function resendOtp(): Promise<FormState> {
   return result.ok ? { message: "A new code has been sent." } : { error: result.error };
 }
 
+/** Clears the session; the caller then does a full page load so no cached member page survives. */
 export async function logout() {
   await destroySession();
-  redirect("/");
 }
 
 /** Step 1 of reset: always answers the same way so it cannot reveal which numbers are registered. */
@@ -130,7 +130,7 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
     data: { passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS), phoneVerified: true, sessionVersion: { increment: 1 } },
   });
   await createSession(updated.id, updated.sessionVersion);
-  redirect("/dashboard");
+  return { redirect: "/dashboard" };
 }
 
 export async function changePassword(_: FormState, fd: FormData): Promise<FormState> {
@@ -153,7 +153,6 @@ export async function logoutEverywhere() {
   const user = await requireUser();
   await db.user.update({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
   await destroySession();
-  redirect("/login");
 }
 
 /** Permanently removes the account and everything linked to it (profile, photos, interests). */
@@ -164,7 +163,7 @@ export async function deleteAccount(_: FormState, fd: FormData): Promise<FormSta
   if (!(await bcrypt.compare(str(fd, "password"), user.passwordHash))) return { error: "Password is incorrect." };
   await db.user.delete({ where: { id: user.id } });
   await destroySession();
-  redirect("/?deleted=1");
+  return { redirect: "/?deleted=1" };
 }
 
 export async function setWhatsappOptIn(optIn: boolean) {

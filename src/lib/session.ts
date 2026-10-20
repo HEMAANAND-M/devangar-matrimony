@@ -1,12 +1,15 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { db } from "./db";
 
-// __Host- cookies must be Secure, host-only and path=/, which blocks subdomain cookie injection.
-const COOKIE = process.env.NODE_ENV === "production" ? "__Host-dm_session" : "dm_session";
+// Over HTTPS the cookie is __Host- prefixed: Secure, host-only and path=/, which blocks subdomain
+// cookie injection. Over plain HTTP (local `next start`, LAN testing) browsers reject Secure cookies,
+// so a normal cookie is used instead. Both names are read and cleared.
+export const SECURE_COOKIE = "__Host-dm_session";
+export const PLAIN_COOKIE = "dm_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
 function key() {
@@ -17,27 +20,40 @@ function key() {
   return new TextEncoder().encode(secret);
 }
 
+/** True when this request reached us over HTTPS (Vercel and most proxies set x-forwarded-proto). */
+async function isHttps(): Promise<boolean> {
+  const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0]?.trim();
+  return process.env.NODE_ENV === "production" && proto === "https";
+}
+
+const baseOptions = { httpOnly: true, sameSite: "lax" as const, path: "/" };
+
 export async function createSession(userId: string, sessionVersion: number) {
   const token = await new SignJWT({ sub: userId, v: sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
     .sign(key());
-  (await cookies()).set(COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE,
-  });
+  const secure = await isHttps();
+  const jar = await cookies();
+  await destroySession();
+  jar.set(secure ? SECURE_COOKIE : PLAIN_COOKIE, token, { ...baseOptions, secure, maxAge: MAX_AGE });
 }
 
+/**
+ * Expires both cookie names. A deletion must repeat the attributes the cookie was set with —
+ * browsers ignore a __Host- cookie update that is not Secure, which previously left members
+ * logged in after "Log out".
+ */
 export async function destroySession() {
-  (await cookies()).delete(COOKIE);
+  const jar = await cookies();
+  jar.set(SECURE_COOKIE, "", { ...baseOptions, secure: true, maxAge: 0 });
+  jar.set(PLAIN_COOKIE, "", { ...baseOptions, secure: false, maxAge: 0 });
 }
 
 async function readSession(): Promise<{ userId: string; version: number } | null> {
-  const token = (await cookies()).get(COOKIE)?.value;
+  const jar = await cookies();
+  const token = jar.get(SECURE_COOKIE)?.value || jar.get(PLAIN_COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });

@@ -20,7 +20,13 @@ export function ActionForm({
   className?: string;
   confirm?: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, formAction, pending] = useActionState(async (prev: FormState, fd: FormData) => {
+    const result = await action(prev, fd);
+    // Start the full page load immediately: when the action changed the session cookie, Next.js
+    // also re-renders the current page, and its own redirect must not win the race.
+    if (result.redirect) window.location.replace(result.redirect);
+    return result;
+  }, {});
   return (
     <form
       className={className}
@@ -41,7 +47,7 @@ export function ActionForm({
           {state.message}
         </p>
       )}
-      <PendingContext.Provider value={pending}>{children}</PendingContext.Provider>
+      <PendingContext.Provider value={pending || !!state.redirect}>{children}</PendingContext.Provider>
     </form>
   );
 }

@@ -33,8 +33,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const etag = `"${photo.id}-${thumb ? "t" : "f"}"`;
   const headers = {
     "Content-Type": "image/webp",
-    // Private: only the signed-in viewer's browser may cache; revalidate daily so privacy changes apply.
-    "Cache-Control": "private, max-age=86400",
+    // Revalidate on every view (a cheap 304 via the ETag) so access is re-checked each time:
+    // another member using the same browser never sees photos cached for someone else.
+    "Cache-Control": "private, no-cache",
+    Vary: "Cookie",
     ETag: etag,
     "X-Content-Type-Options": "nosniff",
     "Content-Disposition": "inline",

@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { changePassword, deleteAccount, logoutEverywhere, setWhatsappOptIn } from "@/app/actions/auth";
+import { changePassword, deleteAccount, setWhatsappOptIn } from "@/app/actions/auth";
 import { cancelFamilyInvite, inviteFamilyMember, leaveManagedProfile, removeFamilyManager } from "@/app/actions/family";
 import { MAX_FAMILY_MANAGERS } from "@/lib/family";
 import { unblockProfile } from "@/app/actions/interactions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Card, PageHeader } from "@/components/Card";
+import { SignOutButton } from "@/components/SignOutButton";
 import { IdVerifiedBadge, PremiumBadge } from "@/components/Badges";
 import { SelectField, TextField } from "@/components/fields";
 import { db } from "@/lib/db";
@@ -161,11 +162,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       <Card title="Devices">
         <p className="text-sm text-stone-600">Signed in on a shared or lost phone? Sign out everywhere, including this device.</p>
-        <form action={logoutEverywhere} className="mt-4">
-          <button className="rounded-full border border-gold/60 px-5 py-2.5 text-sm text-maroon transition hover:bg-gold-light/30">
+        <div className="mt-4">
+          <SignOutButton everywhere className="rounded-full border border-gold/60 px-5 py-2.5 text-sm text-maroon transition hover:bg-gold-light/30">
             Log out of all devices
-          </button>
-        </form>
+          </SignOutButton>
+        </div>
       </Card>
 
       <Card title="Blocked members">

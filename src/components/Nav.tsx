@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { logout } from "@/app/actions/auth";
 import { isPremium } from "@/lib/premium";
 import { getCurrentUser, isStaff } from "@/lib/session";
 import { Logo } from "./Logo";
 import { NavLinks } from "./NavLinks";
+import { SignOutButton } from "./SignOutButton";
 
 export async function Nav() {
   const user = await getCurrentUser();
@@ -36,11 +36,9 @@ export async function Nav() {
     </Link>
   );
   const logoutButton = (
-    <form action={logout}>
-      <button className="rounded-full border border-hairline px-4 py-2 text-sm text-stone-600 transition hover:border-gold hover:text-maroon">
-        Log out
-      </button>
-    </form>
+    <SignOutButton className="rounded-full border border-hairline px-4 py-2 text-sm text-stone-600 transition hover:border-gold hover:text-maroon">
+      Log out
+    </SignOutButton>
   );
 
   return (
