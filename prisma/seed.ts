@@ -75,6 +75,123 @@ async function main() {
   inSixMonths.setMonth(inSixMonths.getMonth() + 6);
   await db.profile.updateMany({ where: { code: "DM90005", premiumUntil: null }, data: { premiumUntil: inSixMonths } });
   await db.profile.updateMany({ where: { code: { in: ["DM90002", "DM90005"] }, idVerifiedAt: null }, data: { idVerifiedAt: new Date() } });
+
+  if (process.env.NODE_ENV !== "production" || process.env.SEED_SHOWCASE === "true") await showcase(demoHash);
+}
+
+const FIRST = {
+  FEMALE: ["Anitha", "Bhavana", "Deepa", "Gayathri", "Harini", "Indhu", "Janani", "Keerthana", "Lavanya", "Meena", "Nandhini", "Pavithra", "Ramya", "Sowmya", "Swetha", "Vidhya", "Yamini", "Sangeetha"],
+  MALE: ["Ajith", "Bala", "Dinesh", "Ganesh", "Hari", "Karthi", "Lokesh", "Manoj", "Naveen", "Prakash", "Rajesh", "Saravanan", "Senthil", "Suresh", "Vasanth", "Venkat", "Yuvaraj", "Gokul"],
+};
+const CITIES = ["Coimbatore", "Tiruppur", "Erode", "Salem", "Chennai", "Madurai", "Bengaluru", "Hosur", "Komarapalayam", "Somanur", "Karur", "Namakkal"];
+const JOBS = ["Software professional", "Teacher / Lecturer", "Textile & weaving business", "Banking & finance", "Engineer", "Doctor", "Government service", "Private company"];
+const EDU = ["Bachelor's – Engineering", "Master's – Arts & Science", "MBA", "Bachelor's – Arts & Science", "Medicine (MBBS / MD)", "Diploma"];
+const GOTHRAMS = ["Kashyapa", "Atreya", "Bharadwaja", "Markandeya", "Vasishta", "Kaundinya", "Gautama"];
+const STARS = ["Ashwini", "Rohini", "Punarpoosam", "Magam", "Hastham", "Swathi", "Anusham", "Moolam", "Thiruvonam", "Revathi"];
+
+/**
+ * Fictional members spread over the last 30 days, plus interests, demo payments, a success story,
+ * an event and an announcement, so the admin dashboard and public pages have something to show.
+ * Skipped in production unless SEED_SHOWCASE=true. Idempotent per phone number.
+ */
+async function showcase(passwordHash: string) {
+  const day = 24 * 60 * 60 * 1000;
+  for (let i = 0; i < 40; i++) {
+    const phone = `+9190000002${String(i).padStart(2, "0")}`;
+    if (await db.user.findUnique({ where: { phone } })) continue;
+    const gender: Gender = i % 5 < 2 ? "FEMALE" : "MALE";
+    const names = FIRST[gender];
+    const joined = new Date(Date.now() - ((i * 7) % 30) * day - (i % 9) * 3600_000);
+    // A few recent sign-ups stay in the review queue.
+    const status = i % 11 === 3 ? "PENDING" : i === 17 ? "MARRIED" : "APPROVED";
+    await db.user.create({
+      data: {
+        phone,
+        passwordHash,
+        phoneVerified: true,
+        createdAt: joined,
+        lastLoginAt: new Date(joined.getTime() + day),
+        lastActiveAt: new Date(Date.now() - (i % 12) * day),
+        profile: {
+          create: {
+            code: `DM${91001 + i}`,
+            profileFor: i % 3 === 0 ? (gender === "MALE" ? "SON" : "DAUGHTER") : "SELF",
+            name: `${names[i % names.length]} (demo)`,
+            gender,
+            dateOfBirth: new Date(1990 + (i % 10), i % 12, 1 + (i % 27)),
+            maritalStatus: i % 13 === 5 ? "DIVORCED" : "NEVER_MARRIED",
+            heightCm: gender === "MALE" ? 165 + (i % 15) : 150 + (i % 14),
+            motherTongue: i % 4 === 0 ? "Kannada" : "Telugu",
+            gothram: GOTHRAMS[i % GOTHRAMS.length],
+            star: STARS[i % STARS.length],
+            education: EDU[i % EDU.length],
+            occupation: JOBS[i % JOBS.length],
+            city: CITIES[(i * 5) % CITIES.length],
+            about: "Demo profile for showcasing the site. It does not represent a real person.",
+            prefMaritalStatus: ["NEVER_MARRIED"],
+            status,
+            marriedAt: status === "MARRIED" ? new Date(Date.now() - 10 * day) : null,
+            createdAt: joined,
+            premiumUntil: i % 6 === 0 ? new Date(Date.now() + 120 * day) : null,
+          },
+        },
+      },
+    });
+  }
+  // Payments and interests are re-created on every run (test clean-up scripts delete them).
+  const profiles = await db.profile.findMany({
+    where: { code: { gte: "DM91001", lte: "DM91040" } },
+    select: { id: true, userId: true, gender: true, createdAt: true, premiumUntil: true },
+    orderBy: { code: "asc" },
+  });
+  for (const p of profiles.filter((x) => x.premiumUntil)) {
+    if (await db.payment.findFirst({ where: { profileId: p.id } })) continue;
+    await db.payment.create({
+      data: { profileId: p.id, paidById: p.userId, plan: "gold-6", months: 6, amount: 299900, status: "PAID", demo: true, createdAt: p.createdAt, paidAt: p.createdAt },
+    });
+  }
+  // Interests between showcase members of opposite genders, spread over the month.
+  const women = profiles.filter((p) => p.gender === "FEMALE");
+  const men = profiles.filter((p) => p.gender === "MALE");
+  for (const [i, m] of men.entries()) {
+    for (const w of [women[i % women.length], women[(i + 3) % women.length]]) {
+      if (!w) continue;
+      const at = new Date(Math.max(m.createdAt.getTime(), w.createdAt.getTime()) + day);
+      await db.interest.upsert({
+        where: { fromId_toId: { fromId: m.id, toId: w.id } },
+        update: {},
+        create: { fromId: m.id, toId: w.id, status: i % 3 === 0 ? "ACCEPTED" : i % 3 === 1 ? "PENDING" : "DECLINED", createdAt: at > new Date() ? new Date() : at },
+      });
+    }
+  }
+
+  if (!(await db.successStory.count())) {
+    await db.successStory.create({
+      data: {
+        coupleNames: "Demo couple — Lakshmi & Ravi",
+        city: "Coimbatore",
+        story: "A sample success story for the demo. Members can share their own from the Success stories page, and admins publish them.",
+        weddingDate: new Date(Date.now() - 40 * day),
+        published: true,
+      },
+    });
+  }
+  if (!(await db.event.count())) {
+    await db.event.create({
+      data: {
+        title: "Devanga community meet (sample event)",
+        description: "A sample event to show how community events appear. Admins add real events from the admin portal.",
+        location: "Community hall, Coimbatore",
+        startsAt: new Date(Date.now() + 21 * day),
+      },
+    });
+  }
+  if (!(await db.announcement.count())) {
+    await db.announcement.create({
+      data: { title: "Welcome to the demo", body: "This is a demonstration site. All profiles are fictional.", audience: "all" },
+    });
+  }
+  console.log("Showcase data: 40 demo members (+919000000200 … 239 / demo12345), interests, payments, story, event");
 }
 
 main().finally(() => db.$disconnect());
