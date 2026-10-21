@@ -445,19 +445,87 @@ model IdVerification {
 }
 
 model Notification {
-  id        String              @id @default(cuid())
-  userId    String
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  template  String
-  params    Json
-  channel   NotificationChannel @default(WHATSAPP)
-  status    NotificationStatus  @default(PENDING)
-  error     String?
-  createdAt DateTime            @default(now())
-  sentAt    DateTime?
+  id         String              @id @default(cuid())
+  userId     String
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template   String
+  params     Json
+  channel    NotificationChannel @default(WHATSAPP)
+  status     NotificationStatus  @default(PENDING)
+  error      String?
+  createdAt  DateTime            @default(now())
+  sentAt     DateTime?
+  /// Set when the notification was sent as part of an admin campaign.
+  campaignId String?
+  campaign   Campaign?           @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([userId, template, createdAt])
   @@index([createdAt])
+  @@index([campaignId, status])
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  CANCELLED
+}
+
+/// A bulk WhatsApp/email message to a filtered group of opted-in members, sent in batches by cron.
+model Campaign {
+  id              String              @id @default(cuid())
+  name            String
+  /// A TEMPLATES key (WhatsApp templates must be pre-approved in Meta).
+  template        String
+  /// Named template parameters; "{name}" is filled per recipient.
+  params          Json
+  channel         NotificationChannel @default(WHATSAPP)
+  /// Audience filters, e.g. { premium: "yes", gender: "FEMALE", inactiveDays: 30, city: "Salem" }.
+  audience        Json
+  status          CampaignStatus      @default(DRAFT)
+  totalRecipients Int                 @default(0)
+  createdById     String?
+  createdAt       DateTime            @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  notifications   Notification[]
+
+  @@index([status, createdAt])
+}
+
+enum AdCategory {
+  WEDDING_PLANNER
+  PHOTOGRAPHER
+  VENUE
+  JEWELLERY
+  BRIDAL_WEAR
+  CATERING
+  DECORATION
+  OTHER
+}
+
+/// Sponsored banner shown in the home-page carousel ("Wedding services").
+model Advertisement {
+  id          String     @id @default(cuid())
+  title       String
+  advertiser  String
+  category    AdCategory @default(OTHER)
+  tagline     String?
+  /// External link opened in a new tab (https only).
+  href        String?
+  /// Banner image (WebP, re-encoded on upload).
+  image       Bytes
+  imageMime   String     @default("image/webp")
+  active      Boolean    @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  sortOrder   Int        @default(0)
+  impressions Int        @default(0)
+  clicks      Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([active, sortOrder])
 }
 
 /**
