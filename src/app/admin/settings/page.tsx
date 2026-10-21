@@ -49,6 +49,9 @@ export default async function SettingsPage() {
     ["ID document key", env("ID_DOC_KEY"), "ID_DOC_KEY — falls back to a key derived from SESSION_SECRET"],
     ["GST invoice details", env("BUSINESS_GSTIN") && env("BUSINESS_NAME") && env("BUSINESS_ADDRESS"), "BUSINESS_NAME, BUSINESS_GSTIN, BUSINESS_ADDRESS"],
     ["Error monitoring", env("SENTRY_DSN"), "SENTRY_DSN"],
+    ["Staff sign-in code (2FA)", process.env.STAFF_2FA !== "off", "STAFF_2FA — keep on in production"],
+    ["Admin IP allowlist", env("ADMIN_IP_ALLOWLIST"), "ADMIN_IP_ALLOWLIST — staff powers only from listed office/VPN IPs"],
+    ["Breached-password check", process.env.PWNED_PASSWORD_CHECK !== "off" && (process.env.NODE_ENV === "production" || process.env.PWNED_PASSWORD_CHECK === "on"), "PWNED_PASSWORD_CHECK — on by default in production"],
   ];
 
   return (
