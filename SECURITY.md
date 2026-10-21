@@ -18,6 +18,8 @@ set). Please do not open a public GitHub issue for security problems.
   - Can be restricted to known IPs with `ADMIN_IP_ALLOWLIST`; outside it, a staff account has no
     staff powers.
 - Suspended and banned accounts are refused at sign-in and on every request.
+- New-device sign-ins alert the member, with a one-tap "This wasn't me" link that signs out every
+  device and locks the password.
 - Sign-in history stores a hashed IP (never the raw address), a device cookie and the browser name;
   members see it in Settings.
 
@@ -88,7 +90,7 @@ Ordered by value for a matrimony site. Items marked **(config)** need no code.
 
 ### Strengthen accounts
 7. ~~Breached-password check~~: done in 1.0.0.
-8. ~~New-device alert~~: done in 1.0.0. A one-tap "this wasn't me" link is still to do.
+8. ~~New-device alert with a one-tap "this wasn't me" link~~: done in 1.0.0 and 1.3.0.
 9. **Passkeys or an authenticator app** for staff instead of SMS codes, which are vulnerable to
    SIM swaps.
 10. **Re-authentication** (password or OTP) before sensitive actions: changing phone or email,

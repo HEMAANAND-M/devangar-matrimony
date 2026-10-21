@@ -47,7 +47,7 @@ const EMAIL_COPY: { [K in Template]: (p: Record<string, string>) => Copy } = {
   contact_approved: (p) => ({ subject: `${p.byCode} shared their phone number`, heading: "Phone number shared", lines: [`${p.name}, member ${p.byCode} approved your request. Their number is now on their profile.`], cta: "View number" }),
   saved_search_matches: (p) => ({ subject: `${p.count} new profiles for “${p.search}”`, heading: "New matches for your saved search", lines: [`${p.name}, ${p.count} new profiles match your saved search “${p.search}”.`], cta: "See profiles" }),
   ticket_reply: (p) => ({ subject: `Re: ${p.subject}`, heading: "Our team replied", lines: [`${p.name}, we've replied to your request “${p.subject}”.`], cta: "Read reply" }),
-  new_sign_in: (p) => ({ subject: "New sign-in to your account", heading: "Was this you?", lines: [`Your account was signed in to from ${p.device} on ${p.time}.`, "If this wasn't you, change your password and choose “Log out of all devices” in Settings straight away."], cta: "Review sign-ins" }),
+  new_sign_in: (p) => ({ subject: "New sign-in to your account", heading: "Was this you?", lines: [`Your account was signed in to from ${p.device} on ${p.time}.`, "If this was you, there is nothing to do.", "If it wasn't, tap the button below: we will sign out every device and lock your password straight away."], cta: "This wasn't me" }),
   account_suspended: (p) => ({ subject: "Your account has been suspended", heading: "Account suspended", lines: [`${p.name}, your account has been suspended.`, `Reason: ${p.reason}`, "If you think this is a mistake, reply to this email or contact support."] }),
 };
 

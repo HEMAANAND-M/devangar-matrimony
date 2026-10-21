@@ -3,6 +3,15 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.3.0] — 2026-10-21
+
+### Added
+
+- **"This wasn't me" in new-sign-in alerts:** the alert now carries a signed, single-use link
+  (valid 7 days). One tap signs out every device, locks the password and takes the member to
+  reset it with an SMS code. Link previewers cannot trigger it, because a button on the page
+  makes the change.
+
 ## [1.2.0] — 2026-10-21
 
 ### Added
