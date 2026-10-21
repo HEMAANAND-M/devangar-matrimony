@@ -3,6 +3,18 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.6.0] — 2026-10-21
+
+### Added
+
+- **Security activity in Settings:** members see the important events on their account (new-device
+  sign-ins, password changes and resets, signing out everywhere, numbers shared, email changes, and
+  actions by our support team), so they can spot anything they didn't do. Entries older than a year
+  are deleted automatically. One database migration: `20261021120000_security_events` (run
+  `npx prisma migrate deploy`).
+- **Admin Trust & safety:** a "Sign-in bursts" count of accounts with 5 or more sign-in attempts in the
+  current 15-minute window, a sign of password guessing.
+
 ## [1.5.0] — 2026-10-21
 
 ### Added

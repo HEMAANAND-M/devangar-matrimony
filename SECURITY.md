@@ -115,10 +115,9 @@ Ordered by value for a matrimony site. Items marked **(config)** need no code.
 19. **Data-retention jobs** for old messages, rejected profiles and closed tickets.
 
 ### Detect and respond
-20. **Security event log** for members (password changed, new device, number shared), visible in
-    Settings.
-21. **Alerts to admins** for unusual activity: many failed logins, staff sign-in from a new country,
-    bulk exports.
+20. ~~Security event log for members~~: done in 1.6.0 (Settings → Security activity).
+21. **Alerts to admins** for unusual activity. Done in part in 1.6.0: the Trust & safety panel shows
+    sign-in bursts. Still to do: push alerts for staff sign-ins from a new country, and for bulk exports.
 22. ~~Incident-response runbook~~: done in 1.4.0, along with an emergency "Sign out everyone"
     button. See [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md).
 

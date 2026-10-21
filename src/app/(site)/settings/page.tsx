@@ -14,7 +14,7 @@ import { ReferralCard } from "@/components/ReferralCard";
 import { db } from "@/lib/db";
 import { deviceLabel } from "@/lib/devices";
 import { dateTime } from "@/lib/format";
-import { getT, getTx } from "@/lib/i18n";
+import { type TKey, getT, getTx } from "@/lib/i18n";
 import { isPremium } from "@/lib/premium";
 import { requireUser } from "@/lib/session";
 
@@ -54,6 +54,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     take: 8,
     select: { id: true, deviceId: true, userAgent: true, createdAt: true },
   });
+  const securityEvents = await db.securityEvent.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 });
   const thisDevice = (await cookies()).get("dm_device")?.value;
   const linkCls = "text-maroon underline decoration-gold/50 underline-offset-4 hover:decoration-gold";
   const [t, tx] = await Promise.all([getT(), getTx()]);
@@ -192,6 +193,23 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 </li>
               ))}
             </ul>
+          </>
+        )}
+        {securityEvents.length > 0 && (
+          <>
+            <p className="eyebrow mb-2 text-gold-dark">{t("set.securityActivity")}</p>
+            <ul className="mb-5 divide-y divide-hairline rounded-xl border border-hairline">
+              {securityEvents.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                  <span className="min-w-0 text-ink">
+                    {t(`sec.${e.kind}` as TKey)}
+                    {e.detail && <span className="ml-1.5 text-stone-500">· {e.detail}</span>}
+                  </span>
+                  <span className="text-xs text-stone-500">{dateTime(e.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="-mt-3 mb-5 text-xs text-stone-500">{t("set.securityHint")}</p>
           </>
         )}
         <p className="text-sm text-stone-600">{t("set.devicesBody")}</p>

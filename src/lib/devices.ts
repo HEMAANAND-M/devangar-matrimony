@@ -6,6 +6,7 @@ import { link, notifyUser } from "./notify";
 import { createRevokeToken } from "./revoke-token";
 import { clientIp } from "./rate-limit";
 import { isHttps } from "./session";
+import { logSecurity } from "./security-log";
 
 // Long-lived random id per browser: lets members recognise their devices and lets staff spot one
 // device behind several accounts. It identifies a browser, not a person, and is never shown raw.
@@ -36,6 +37,7 @@ export async function recordLoginEvent(userId: string) {
       const time = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
       const { sessionVersion } = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { sessionVersion: true } });
       const token = await createRevokeToken(userId, sessionVersion);
+      await logSecurity(userId, "new_device", deviceLabel(userAgent));
       await notifyUser(userId, "new_sign_in", { device: deviceLabel(userAgent), time, link: link(`/security/not-me?t=${encodeURIComponent(token)}`) });
     }
     await db.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });

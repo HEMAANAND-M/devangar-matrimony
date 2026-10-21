@@ -170,11 +170,25 @@ model User {
   referredBy     User?           @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   referrals      User[]          @relation("Referrals")
   loginEvents    LoginEvent[]
+  securityEvents SecurityEvent[]
   tickets        SupportTicket[]
   ticketMessages TicketMessage[]
 
   @@index([createdAt])
   @@index([lastActiveAt])
+}
+
+/// Security-relevant events on an account, shown to the member in Settings ("Security activity").
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// new_device | password_changed | password_reset | signed_out_everywhere | locked_via_link | number_shared | email_changed | staff_signed_out | staff_password_reset
+  kind      String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 /// One row per successful sign-in: powers "devices", member timelines and multi-account detection.

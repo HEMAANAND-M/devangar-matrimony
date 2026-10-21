@@ -8,6 +8,7 @@ import { tm } from "@/lib/i18n";
 import { HOUR, RATE_LIMITED, clientIp, rateLimitAll } from "@/lib/rate-limit";
 import { readRevokeToken } from "@/lib/revoke-token";
 import { destroySession } from "@/lib/session";
+import { logSecurity } from "@/lib/security-log";
 
 /**
  * "This wasn't me" from a new-sign-in alert: signs out every device and replaces the password
@@ -23,6 +24,7 @@ export async function revokeFromLink(token: string): Promise<FormState> {
     data: { sessionVersion: { increment: 1 }, passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 12) },
   });
   if (!locked.count) return { error: await tm("This link has expired or was already used.") };
+  await logSecurity(claim.userId, "locked_via_link");
   await destroySession();
   return { redirect: "/forgot-password?locked=1" };
 }

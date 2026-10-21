@@ -11,6 +11,7 @@ import { HOUR, RATE_LIMITED, rateLimit } from "@/lib/rate-limit";
 import { requireProfile } from "@/lib/session";
 import { featureEnabled } from "@/lib/settings";
 import { tm } from "@/lib/i18n";
+import { logSecurity } from "@/lib/security-log";
 
 /**
  * Asks to see a member's phone number. Requires an accepted interest (they already chose to
@@ -49,8 +50,9 @@ export async function respondContact(requestId: string, approve: boolean): Promi
   });
   if (!updated.count) return { error: await tm("This request has already been answered.") };
   if (approve) {
-    const request = await db.contactRequest.findUnique({ where: { id: requestId }, include: { from: { select: { id: true, name: true } } } });
+    const request = await db.contactRequest.findUnique({ where: { id: requestId }, include: { from: { select: { id: true, name: true, code: true } } } });
     if (request) {
+      await logSecurity(profile.userId, "number_shared", request.from.code);
       await notifyProfile(request.from.id, "contact_approved", {
         name: request.from.name.split(" ")[0],
         byCode: profile.code,

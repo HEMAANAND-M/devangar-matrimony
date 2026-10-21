@@ -18,6 +18,7 @@ import { tm } from "@/lib/i18n";
 import { featureEnabled } from "@/lib/settings";
 import { TURNSTILE_FAILED, verifyTurnstile } from "@/lib/turnstile";
 import { deletePhotos } from "@/lib/storage";
+import { logSecurity } from "@/lib/security-log";
 
 // Compared against when the phone is unknown, so both paths cost the same.
 const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
@@ -215,6 +216,7 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
     where: { id: user.id },
     data: { passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS), phoneVerified: true, sessionVersion: { increment: 1 } },
   });
+  await logSecurity(updated.id, "password_reset");
   const blocked = await accountBlock(updated);
   if (blocked) return { error: `Password changed. ${blocked}` };
   await createSession(updated.id, updated.sessionVersion);
@@ -235,6 +237,7 @@ export async function changePassword(_: FormState, fd: FormData): Promise<FormSt
     where: { id: user.id },
     data: { passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS), sessionVersion: { increment: 1 } },
   });
+  await logSecurity(updated.id, "password_changed");
   await createSession(updated.id, updated.sessionVersion);
   return { message: await tm("Password changed. Other devices have been signed out.") };
 }
@@ -242,6 +245,7 @@ export async function changePassword(_: FormState, fd: FormData): Promise<FormSt
 export async function logoutEverywhere() {
   const user = await requireUser();
   await db.user.update({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
+  await logSecurity(user.id, "signed_out_everywhere");
   await destroySession();
 }
 

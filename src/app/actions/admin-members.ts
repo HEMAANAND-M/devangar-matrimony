@@ -14,6 +14,7 @@ import { getPlan } from "@/lib/plans";
 import { extendPremium, rupees } from "@/lib/premium";
 import { requireAdmin, requireStaff } from "@/lib/session";
 import { deletePhotos } from "@/lib/storage";
+import { logSecurity } from "@/lib/security-log";
 
 /** Every staff decision is recorded with the staff member who made it. */
 function log(adminId: string, action: string, targetId: string, detail?: string) {
@@ -82,6 +83,7 @@ export async function forceLogout(userId: string): Promise<FormState> {
   if ("error" in t) return { error: t.error };
   await db.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
   await log(admin.id, "member.force_logout", userId);
+  await logSecurity(userId, "staff_signed_out");
   revalidatePath(memberPath(userId));
   return { message: "Signed out on all devices." };
 }
@@ -99,6 +101,7 @@ export async function resetMemberPassword(userId: string): Promise<FormState> {
   }
   await db.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(password, 12), sessionVersion: { increment: 1 } } });
   await log(admin.id, "member.reset_password", userId);
+  await logSecurity(userId, "staff_password_reset");
   revalidatePath(memberPath(userId));
   return { message: `Temporary password: ${password} — share it with the member directly; it is not shown again. Ask them to change it in Settings.` };
 }
