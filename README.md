@@ -203,7 +203,7 @@ src/components/           shared UI
 
 The site installs as an app on Android and iPhone ("Install the app" in the footer on Android, or Share → Add to Home Screen on iPhone). It opens full screen at the dashboard and shows a branded offline page without a connection. The service worker only caches the build's static files, never member pages, photos or data.
 
-To publish in the Google Play Store without a separate codebase, package the deployed site as a Trusted Web Activity with [PWABuilder](https://www.pwabuilder.com) (enter the live URL and choose Android). Then host the generated  at .
+To publish in the Google Play Store without a separate codebase, package the deployed site as a Trusted Web Activity with [PWABuilder](https://www.pwabuilder.com) (enter the live URL and choose Android). Then host the generated `assetlinks.json` at `/.well-known/assetlinks.json`.
 
 ## Next steps before launch
 
