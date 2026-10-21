@@ -36,7 +36,7 @@ export function DismissibleAnnouncements({ items }: { items: AnnouncementItem[] 
   return (
     <div className="border-b border-gold/30 bg-gradient-to-r from-gold-light/60 via-cream to-gold-light/60">
       {visible.map((a) => (
-        <div key={a.id} role="status" className="mx-auto flex max-w-6xl items-start gap-3 px-4 py-2.5 text-sm text-maroon-dark sm:items-center">
+        <div key={a.id} role="note" aria-label="Announcement" className="mx-auto flex max-w-6xl items-start gap-3 px-4 py-2.5 text-sm text-maroon-dark sm:items-center">
           <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rotate-45 bg-gold-dark sm:mt-0" aria-hidden />
           <p className="flex-1">
             <span className="font-semibold">{a.title}</span> <span className="text-stone-700">{a.body}</span>

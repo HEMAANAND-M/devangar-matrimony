@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { blockFromForm, reportProfile, sendInterest, toggleShortlist } from "@/app/actions/interactions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import Link from "next/link";
 import { ActiveIndicator, IdVerifiedBadge, MatchBadge, PhoneVerifiedBadge, PhotoVerifiedBadge, PremiumBadge } from "@/components/Badges";
 import { Card } from "@/components/Card";
 import { ContactRequestPanel } from "@/components/ContactRequestPanel";
@@ -102,18 +101,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
             {connected ? (
               <div className="text-sm">
                 <p className="font-semibold text-green-700">You are connected</p>
-                {isPremium(me) || isAdmin ? (
-                  <p className="mt-1">Contact: <a href={`tel:${p.user.phone}`} className="font-medium text-maroon">{p.user.phone}</a></p>
-                ) : (
-                  <div className="mt-3 rounded-xl border border-gold/40 bg-cream p-4">
-                    <p className="text-stone-700">
-                      Contact: <span className="font-medium tracking-widest text-stone-400 blur-[3px]" aria-hidden>+91 98XXX XXXXX</span>
-                    </p>
-                    <Link href="/upgrade" className="mt-3 inline-block rounded-full bg-maroon px-5 py-2 text-xs font-medium text-white shadow-soft hover:bg-maroon-dark">
-                      Upgrade to Premium to view contact
-                    </Link>
-                  </div>
-                )}
+                {/* Members' numbers are shared only through an approved contact request (below). */}
+                {isAdmin && <p className="mt-1">Contact (staff view): <a href={`tel:${p.user.phone}`} className="font-medium text-maroon">{p.user.phone}</a></p>}
               </div>
             ) : sent ? (
               <p className="text-sm text-stone-700">Interest sent · {sent.status.toLowerCase()}</p>

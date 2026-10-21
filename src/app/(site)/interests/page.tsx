@@ -50,7 +50,7 @@ export default async function InterestsPage({ searchParams }: { searchParams: Pr
   const [interests, pendingCount] = await Promise.all([
     db.interest.findMany({
       where,
-      include: { from: { include: { user: { select: { phone: true } } } }, to: { include: { user: { select: { phone: true } } } } },
+      include: { from: true, to: true },
       orderBy: { updatedAt: "desc" },
     }),
     db.interest.count({ where: { toId: profile.id, status: "PENDING" } }),
@@ -101,11 +101,14 @@ export default async function InterestsPage({ searchParams }: { searchParams: Pr
                 {i.message && <p className="mt-2 break-words text-sm italic text-stone-700">“{i.message}”</p>}
                 {i.status === "ACCEPTED" && (
                   premium ? (
-                    <p className="mt-2 text-sm">Contact: <a className="font-medium text-maroon" href={`tel:${other.user.phone}`}>{other.user.phone}</a></p>
+                    <p className="mt-2 text-sm text-stone-600">
+                      Connected ·{" "}
+                      <Link href={`/profiles/${other.code}`} className="font-medium text-maroon underline decoration-gold/50 underline-offset-4">Message or request their number</Link>
+                    </p>
                   ) : (
                     <p className="mt-2 text-sm text-stone-600">
                       Connected ·{" "}
-                      <Link href="/upgrade" className="font-medium text-maroon underline decoration-gold/50 underline-offset-4">Upgrade to view contact</Link>
+                      <Link href="/upgrade" className="font-medium text-maroon underline decoration-gold/50 underline-offset-4">Upgrade to message and request numbers</Link>
                     </p>
                   )
                 )}

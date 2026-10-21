@@ -152,7 +152,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                   )}
                 </Td>
                 <Td className="text-right">
-                  {p.status === "PAID" && (
+                  {p.status === "PAID" && p.amount > 0 && (
                     <details className="group relative inline-block text-left">
                       <summary className={`${buttonCls.ghost} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>Refund</summary>
                       <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-hairline bg-white p-4 shadow-lift">
@@ -162,7 +162,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                             <input name="amount" inputMode="decimal" placeholder={String(p.amount / 100)} className={`${inputCls} mt-1 w-full`} />
                           </label>
                           <label className="flex items-center gap-2 text-sm text-stone-700">
-                            <input type="checkbox" name="revoke" className="accent-maroon" /> Also remove {p.months} months of premium
+                            <input type="checkbox" name="revoke" className="accent-maroon" /> Also remove {p.months} month{p.months === 1 ? "" : "s"} of premium
                           </label>
                           <SubmitButton variant="danger" className={`${SUBMIT} w-full`}>Refund payment</SubmitButton>
                         </ActionForm>
