@@ -119,9 +119,8 @@ Ordered by value for a matrimony site. Items marked **(config)** need no code.
     Settings.
 21. **Alerts to admins** for unusual activity: many failed logins, staff sign-in from a new country,
     bulk exports.
-22. ~~Incident-response runbook~~: done in 1.4.0 ([docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)), along with an emergency "sign out everyone" button. The original note: covering how to revoke all sessions (bump every
-    `sessionVersion`), rotate secrets, notify members and report to CERT-In within 6 hours, as
-    Indian law requires.
+22. ~~Incident-response runbook~~: done in 1.4.0, along with an emergency "Sign out everyone"
+    button. See [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md).
 
 ### Platform upgrades
 23. Upgrade to Next.js 16 and Prisma 7 when convenient. Today their advisories are patched with npm
