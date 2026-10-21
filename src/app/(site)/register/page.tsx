@@ -7,6 +7,8 @@ import { TextField } from "@/components/fields";
 import { getT } from "@/lib/i18n";
 import { getCurrentUser, homePath } from "@/lib/session";
 import { featureEnabled } from "@/lib/settings";
+import { Turnstile } from "@/components/Turnstile";
+import { turnstileSiteKey } from "@/lib/turnstile";
 
 export const metadata = { title: "Register" };
 
@@ -17,6 +19,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   if (user) redirect(homePath(user, !!user.profile));
   const params = await searchParams;
   const t = await getT();
+  const siteKey = turnstileSiteKey();
   // Prefilled from the home page quick-start form; digits only.
   const phone = params.phone?.replace(/\D/g, "").slice(-10);
   // Referral code from a member's share link (/register?ref=CODE).
@@ -62,6 +65,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
           <input type="checkbox" name="whatsapp" className="mt-1 accent-maroon" />
           {t("auth.whatsapp")}
         </label>
+        {siteKey && <Turnstile siteKey={siteKey} />}
         <SubmitButton className="w-full py-3.5">{t("auth.registerButton")}</SubmitButton>
       </ActionForm>
       <p className="mt-8 border-t border-hairline pt-6 text-center text-sm text-stone-600">

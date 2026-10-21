@@ -6,6 +6,8 @@ import { TextArea, TextField } from "@/components/fields";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { type TKey, getT } from "@/lib/i18n";
+import { Turnstile } from "@/components/Turnstile";
+import { turnstileSiteKey } from "@/lib/turnstile";
 
 export const metadata = { title: "Help & support", description: "Contact the Devangar Matrimony support team." };
 
@@ -22,6 +24,7 @@ export default async function SupportPage() {
     : [];
   const fmt = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
   const tr = await getT();
+  const siteKey = turnstileSiteKey();
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -45,6 +48,7 @@ export default async function SupportPage() {
             <TextField label={tr("support.subject")} name="subject" required maxLength={140} placeholder={tr("support.subjectPlaceholder")} />
             <TextArea label={tr("support.message")} name="message" required rows={6} maxLength={4000} />
             <p className="text-xs text-stone-500">{tr("support.never")}</p>
+            {!user && siteKey && <Turnstile siteKey={siteKey} />}
             <SubmitButton>{tr("support.sendButton")}</SubmitButton>
           </ActionForm>
         </Card>

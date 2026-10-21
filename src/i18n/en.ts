@@ -1161,6 +1161,7 @@ export const en = {
   "msg.s.failed": "Could not save this search.",
   "msg.s.max": "You can keep up to {max} saved searches. Delete one first.",
   "msg.s.saved": "Search saved.",
+  "msg.turnstile": "Please complete the security check and try again.",
   "set.youAreManaging": "You are managing",
   "set.managingDetail": "’s profile ({code}) as their {relation}.",
 } as const;

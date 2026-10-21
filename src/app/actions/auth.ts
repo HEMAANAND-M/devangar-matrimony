@@ -16,6 +16,7 @@ import {
 import { BREACHED_PASSWORD, isBreachedPassword } from "@/lib/pwned";
 import { tm } from "@/lib/i18n";
 import { featureEnabled } from "@/lib/settings";
+import { TURNSTILE_FAILED, verifyTurnstile } from "@/lib/turnstile";
 import { deletePhotos } from "@/lib/storage";
 
 // Compared against when the phone is unknown, so both paths cost the same.
@@ -35,6 +36,7 @@ function passwordProblem(password: string, confirm: string): string | null {
 }
 
 export async function register(_: FormState, fd: FormData): Promise<FormState> {
+  if (!(await verifyTurnstile(fd))) return { error: await tm(TURNSTILE_FAILED) };
   if (!(await featureEnabled("registrations"))) {
     return { error: await tm("New registrations are paused for a short while. Please try again later.") };
   }
@@ -78,6 +80,7 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
     [`login:phone:${phone ?? "invalid"}`, 8, 15 * MINUTE],
   ]);
   if (!allowed) return { error: await tm(RATE_LIMITED) };
+  if (!(await verifyTurnstile(fd))) return { error: await tm(TURNSTILE_FAILED) };
 
   const password = str(fd, "password");
   const user = phone ? await db.user.findUnique({ where: { phone }, include: { profile: { select: { id: true } }, managing: { select: { id: true } } } }) : null;
@@ -177,6 +180,7 @@ export async function logout() {
 export async function requestPasswordReset(_: FormState, fd: FormData): Promise<FormState> {
   const ip = await clientIp();
   if (!(await rateLimitAll([[`reset:ip:${ip}`, 10, HOUR]]))) return { error: await tm(RATE_LIMITED) };
+  if (!(await verifyTurnstile(fd))) return { error: await tm(TURNSTILE_FAILED) };
   const phone = normalizePhone(str(fd, "phone"));
   if (!phone) return { error: await tm("Enter a valid 10-digit Indian mobile number.") };
 

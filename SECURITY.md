@@ -22,6 +22,8 @@ set). Please do not open a public GitHub issue for security problems.
   members see it in Settings.
 
 ### Abuse prevention
+- Optional Cloudflare Turnstile bot check on sign-up, login, password reset and the public contact
+  form (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`). It fails closed if Cloudflare cannot be reached.
 - Postgres-backed rate limits apply to:
   - login (per IP and per number), registration, OTPs and password reset
   - interests, reports, uploads, chat (30 messages a minute), contact requests, support tickets,
@@ -85,21 +87,18 @@ Ordered by value for a matrimony site. Items marked **(config)** need no code.
 6. Get an external penetration test, or at least an OWASP ZAP baseline scan, of the staging site.
 
 ### Strengthen accounts
-7. **Breached-password check:** reject passwords found in known breaches (Have I Been Pwned k-anonymity
-   API, which never sends the password).
-8. **New-device alert:** notify members on WhatsApp or email when their account signs in from a new
-   device, with a "this wasn't me" link that signs out everywhere.
+7. ~~Breached-password check~~: done in 1.0.0.
+8. ~~New-device alert~~: done in 1.0.0. A one-tap "this wasn't me" link is still to do.
 9. **Passkeys or an authenticator app** for staff instead of SMS codes, which are vulnerable to
    SIM swaps.
 10. **Re-authentication** (password or OTP) before sensitive actions: changing phone or email,
     deleting the account, revealing phone numbers in admin.
 
 ### Stop fake profiles and scams
-11. **Bot protection** on registration and login with Cloudflare Turnstile (free and privacy-friendly).
+11. ~~Bot protection with Cloudflare Turnstile~~: done in 1.2.0. Turn it on with the two keys.
 12. **Automatic selfie-to-photo face match** (AWS Rekognition or Azure Face) to pre-screen photo
     verification before staff review.
-13. **Scam keyword detection** in chat ("send money", "gift", "customs", "investment"), with a gentle
-    warning to the recipient and a flag for moderators.
+13. ~~Scam keyword detection in chat~~: done in 1.0.0.
 14. **Throttle brand-new accounts** (fewer interests and messages in the first days) until the profile
     is approved and verified.
 15. **Disposable-number and VoIP detection** at registration through the SMS provider's lookup API.

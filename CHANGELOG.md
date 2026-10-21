@@ -3,6 +3,15 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.2.0] — 2026-10-21
+
+### Added
+
+- **Bot protection (Cloudflare Turnstile)** on sign-up, login, password reset and the public contact
+  form. Switch it on by setting `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. It is off by
+  default, so local demos are unaffected.
+- The bot check uses the visitor's language, and its message is translated into Tamil.
+
 ## [1.1.1] — 2026-10-21
 
 ### Fixed

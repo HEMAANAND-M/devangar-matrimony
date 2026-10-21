@@ -7,6 +7,7 @@ import { type FormState, str } from "@/lib/form";
 import { link, notifyProfile, notifyUser } from "@/lib/notify";
 import { HOUR, RATE_LIMITED, clientIp, rateLimitAll } from "@/lib/rate-limit";
 import { getCurrentUser, isStaff, requireStaff, requireUser } from "@/lib/session";
+import { TURNSTILE_FAILED, verifyTurnstile } from "@/lib/turnstile";
 
 function log(adminId: string, action: string, targetId: string, detail?: string) {
   return db.adminLog.create({ data: { adminId, action, targetId, detail } });
@@ -20,6 +21,7 @@ export async function createTicket(_: FormState, fd: FormData): Promise<FormStat
   if (!(await rateLimitAll([[`ticket:ip:${ip}`, 5, HOUR], ...(user ? ([[`ticket:user:${user.id}`, 5, HOUR]] as [string, number, number][]) : [])]))) {
     return { error: RATE_LIMITED };
   }
+  if (!user && !(await verifyTurnstile(fd))) return { error: TURNSTILE_FAILED };
   const subject = str(fd, "subject").slice(0, 140);
   const body = str(fd, "message").slice(0, 4000);
   if (!subject || body.length < 10) return { error: "Add a subject and describe how we can help (at least 10 characters)." };

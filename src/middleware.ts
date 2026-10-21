@@ -33,9 +33,9 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.razorpay.com",
     "font-src 'self'",
-    `connect-src 'self' https://*.razorpay.com${dev ? " ws: wss:" : ""}`,
-    // Razorpay Checkout renders its payment form in an iframe.
-    "frame-src https://api.razorpay.com https://checkout.razorpay.com",
+    `connect-src 'self' https://*.razorpay.com https://challenges.cloudflare.com${dev ? " ws: wss:" : ""}`,
+    // Razorpay Checkout and the Cloudflare Turnstile bot check render in iframes.
+    "frame-src https://api.razorpay.com https://checkout.razorpay.com https://challenges.cloudflare.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

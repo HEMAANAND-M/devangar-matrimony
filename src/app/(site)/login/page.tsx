@@ -6,6 +6,8 @@ import { AuthShell, authLinkCls } from "@/components/AuthShell";
 import { TextField } from "@/components/fields";
 import { getT } from "@/lib/i18n";
 import { getCurrentUser, homePath } from "@/lib/session";
+import { Turnstile } from "@/components/Turnstile";
+import { turnstileSiteKey } from "@/lib/turnstile";
 
 export const metadata = { title: "Log in" };
 
@@ -13,6 +15,7 @@ export default async function LoginPage() {
   const user = await getCurrentUser();
   if (user) redirect(homePath(user, !!user.profile));
   const t = await getT();
+  const siteKey = turnstileSiteKey();
   return (
     <AuthShell eyebrow={t("auth.loginEyebrow")} title={t("auth.loginTitle")} subtitle={t("auth.loginLead")}>
       <ActionForm action={login} className="space-y-5">
@@ -21,6 +24,7 @@ export default async function LoginPage() {
         <p className="-mt-2 text-right text-sm">
           <Link href="/forgot-password" className="text-stone-600 hover:text-maroon">{t("auth.forgot")}</Link>
         </p>
+        {siteKey && <Turnstile siteKey={siteKey} />}
         <SubmitButton className="w-full py-3.5">{t("auth.loginButton")}</SubmitButton>
       </ActionForm>
       <p className="mt-8 border-t border-hairline pt-6 text-center text-sm text-stone-600">
