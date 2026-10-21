@@ -26,7 +26,7 @@ export async function startCheckout(planId: string, couponCode?: string): Promis
   let discount = 0;
   let appliedCode: string | null = null;
   if (couponCode?.trim()) {
-    const coupon = await evaluateCoupon(couponCode, plan);
+    const coupon = await evaluateCoupon(couponCode, plan, profile.id);
     if (!coupon.ok) return { kind: "error", error: coupon.error };
     discount = coupon.discount;
     appliedCode = coupon.code;

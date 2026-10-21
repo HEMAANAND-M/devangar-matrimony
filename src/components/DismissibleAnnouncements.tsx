@@ -16,7 +16,15 @@ function readDismissed(): string[] {
 }
 
 /** Renders only after mount so a dismissed banner never flashes back on page load. */
-export function DismissibleAnnouncements({ items }: { items: AnnouncementItem[] }) {
+export function DismissibleAnnouncements({
+  items,
+  learnMore = "Learn more",
+  dismissLabel = "Dismiss: {title}",
+}: {
+  items: AnnouncementItem[];
+  learnMore?: string;
+  dismissLabel?: string;
+}) {
   const [visible, setVisible] = useState<AnnouncementItem[] | null>(null);
   useEffect(() => {
     const dismissed = readDismissed();
@@ -42,11 +50,11 @@ export function DismissibleAnnouncements({ items }: { items: AnnouncementItem[] 
             <span className="font-semibold">{a.title}</span> <span className="text-stone-700">{a.body}</span>
             {a.href && (
               <Link href={a.href} className="ml-2 whitespace-nowrap font-medium text-maroon underline decoration-gold underline-offset-4">
-                Learn more
+                {learnMore}
               </Link>
             )}
           </p>
-          <button type="button" onClick={() => dismiss(a.id)} aria-label={`Dismiss: ${a.title}`} className="rounded-full p-1 text-stone-500 transition hover:bg-white/60 hover:text-maroon">
+          <button type="button" onClick={() => dismiss(a.id)} aria-label={dismissLabel.replace("{title}", a.title)} className="rounded-full p-1 text-stone-500 transition hover:bg-white/60 hover:text-maroon">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>

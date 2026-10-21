@@ -4,7 +4,15 @@ import { useEffect, useState, useTransition } from "react";
 import type { FormState } from "@/lib/form";
 
 /** "Resend code" with a countdown matching the server's 60-second cooldown. */
-export function ResendCodeButton({ action, initialWait }: { action: () => Promise<FormState>; initialWait: number }) {
+export function ResendCodeButton({
+  action,
+  initialWait,
+  labels = { resend: "Resend code", resendIn: "Resend code in {seconds}s", sending: "Sending…" },
+}: {
+  action: () => Promise<FormState>;
+  initialWait: number;
+  labels?: { resend: string; resendIn: string; sending: string };
+}) {
   const [wait, setWait] = useState(initialWait);
   const [result, setResult] = useState<FormState | null>(null);
   const [pending, startTransition] = useTransition();
@@ -30,7 +38,7 @@ export function ResendCodeButton({ action, initialWait }: { action: () => Promis
         }
         className="rounded-full border border-gold/60 px-5 py-2 text-sm text-maroon transition hover:bg-gold-light/30 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {pending ? "Sending…" : wait > 0 ? `Resend code in ${wait}s` : "Resend code"}
+        {pending ? labels.sending : wait > 0 ? labels.resendIn.replace("{seconds}", String(wait)) : labels.resend}
       </button>
       <p aria-live="polite" className="min-h-5 text-xs">
         {result?.error && <span className="text-red-700">{result.error}</span>}

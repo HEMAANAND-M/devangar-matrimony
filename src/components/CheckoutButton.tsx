@@ -25,7 +25,43 @@ function loadRazorpay(): Promise<RazorpayCtor> {
   });
 }
 
-export function CheckoutButton({ planId, label, featured, couponCode }: { planId: string; label: string; featured?: boolean; couponCode?: string }) {
+export type CheckoutLabels = {
+  welcome: string;
+  demo: string;
+  demoBody: string;
+  activating: string;
+  complete: string;
+  cancel: string;
+  wait: string;
+  failed: string;
+  failedNoCharge: string;
+};
+
+const ENGLISH: CheckoutLabels = {
+  welcome: "Welcome to Premium!",
+  demo: "Demo checkout",
+  demoBody: "Razorpay isn’t connected yet, so no money will be charged. This activates {plan} for testing.",
+  activating: "Activating…",
+  complete: "Complete demo payment",
+  cancel: "Cancel",
+  wait: "Please wait…",
+  failed: "Payment failed.",
+  failedNoCharge: "Payment failed. No money was taken; please try again.",
+};
+
+export function CheckoutButton({
+  planId,
+  label,
+  featured,
+  couponCode,
+  labels = ENGLISH,
+}: {
+  planId: string;
+  label: string;
+  featured?: boolean;
+  couponCode?: string;
+  labels?: CheckoutLabels;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +73,7 @@ export function CheckoutButton({ planId, label, featured, couponCode }: { planId
       setDone(true);
       setDemo(null);
       router.refresh();
-    } else setError(result.error ?? "Payment failed.");
+    } else setError(result.error ?? labels.failed);
   };
 
   const begin = () =>
@@ -63,7 +99,7 @@ export function CheckoutButton({ planId, label, featured, couponCode }: { planId
             ),
         });
         rzp.on("payment.failed", (r) => {
-          setError("Payment failed. No money was taken; please try again.");
+          setError(labels.failedNoCharge);
           void reportCheckoutFailure(start.orderId, r.error?.description ?? r.error?.reason ?? "");
         });
         rzp.open();
@@ -72,14 +108,14 @@ export function CheckoutButton({ planId, label, featured, couponCode }: { planId
       }
     });
 
-  if (done) return <p className="rounded-full bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-800">Welcome to Premium!</p>;
+  if (done) return <p className="rounded-full bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-800">{labels.welcome}</p>;
 
   return (
     <div>
       {demo ? (
         <div className="rounded-xl border border-dashed border-gold bg-cream p-4 text-left text-sm">
-          <p className="font-medium text-maroon">Demo checkout</p>
-          <p className="mt-1 text-stone-600">Razorpay isn’t connected yet, so no money will be charged. This activates {demo.planName} for testing.</p>
+          <p className="font-medium text-maroon">{labels.demo}</p>
+          <p className="mt-1 text-stone-600">{labels.demoBody.replace("{plan}", demo.planName)}</p>
           <div className="mt-3 flex gap-2">
             <button
               type="button"
@@ -87,9 +123,9 @@ export function CheckoutButton({ planId, label, featured, couponCode }: { planId
               onClick={() => startTransition(async () => finish(await completeDemoPayment(demo.paymentId)))}
               className="rounded-full bg-maroon px-4 py-2 text-xs font-medium text-white disabled:opacity-60"
             >
-              {pending ? "Activating…" : "Complete demo payment"}
+              {pending ? labels.activating : labels.complete}
             </button>
-            <button type="button" onClick={() => setDemo(null)} className="px-2 text-xs text-stone-600 underline">Cancel</button>
+            <button type="button" onClick={() => setDemo(null)} className="px-2 text-xs text-stone-600 underline">{labels.cancel}</button>
           </div>
         </div>
       ) : (
@@ -101,7 +137,7 @@ export function CheckoutButton({ planId, label, featured, couponCode }: { planId
             featured ? "bg-gold text-maroon-dark hover:bg-gold-light" : "bg-maroon text-white hover:bg-maroon-dark"
           }`}
         >
-          {pending ? "Please wait…" : label}
+          {pending ? labels.wait : label}
         </button>
       )}
       {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}

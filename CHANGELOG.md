@@ -3,6 +3,46 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.1.0] — 2026-10-21
+
+Tamil language, admin quality-of-life improvements, and fixes found in a full review of payments
+and member flows. No database changes.
+
+### Added
+
+- **Tamil (தமிழ்) for the whole member site:**
+  - A language switch in the menu and footer. The choice is remembered on the account, so it
+    follows the member to new devices.
+  - Covers home, sign-in, dashboard, profiles (porutham names included), the profile form, photos,
+    verification, search, interests, messages, visitors, settings, Premium and invoices, plus the
+    error messages members see.
+  - Tamil fonts load only for Tamil pages.
+  - Still English: the admin portal, emails, WhatsApp templates and admin-written content
+    (FAQ answers, stories, events, announcements).
+- **Unread message count** on the Messages menu item.
+- **Admin:**
+  - A "find a member" search box in the top bar of every page.
+  - A Trust & safety panel on the dashboard counting each automatic flag and restricted account,
+    linking straight to those members.
+  - The integrations list shows whether staff two-factor, the admin IP allowlist and the
+    breached-password check are active.
+- **[docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md):** a day-to-day guide for the moderation team.
+
+### Fixed
+
+- **Save a search** could hang on "Please wait…" (the search was saved, but the confirmation never
+  appeared). Saving now reloads the search with a "Search saved." confirmation.
+- **Refunds:** two admins refunding the same payment at the same moment could refund it twice.
+- **Coupons:** a coupon could be reused by the same member on every renewal. Each coupon now works
+  once per profile.
+- **"Verified" label:** shown on every approved profile, it was easy to confuse with real
+  verification. It now says "Reviewed".
+- **Match panel:** now warns when fewer than half of the poruthams match, so a high preference score
+  no longer hides poor star compatibility.
+- **Admin charts:** drew an empty grid with repeated "₹0" labels when there was no data.
+- **Search performance:** profile cards no longer prefetch every profile page in the results grid,
+  which saves a server render per card.
+
 ## [1.0.0] — 2026-10-21
 
 The admin portal is rebuilt from a single page into a full back office, and members get chat,

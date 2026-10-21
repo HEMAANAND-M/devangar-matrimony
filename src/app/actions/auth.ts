@@ -14,6 +14,7 @@ import {
   readStaffPending, requireUser,
 } from "@/lib/session";
 import { BREACHED_PASSWORD, isBreachedPassword } from "@/lib/pwned";
+import { tm } from "@/lib/i18n";
 import { featureEnabled } from "@/lib/settings";
 import { deletePhotos } from "@/lib/storage";
 
@@ -35,21 +36,21 @@ function passwordProblem(password: string, confirm: string): string | null {
 
 export async function register(_: FormState, fd: FormData): Promise<FormState> {
   if (!(await featureEnabled("registrations"))) {
-    return { error: "New registrations are paused for a short while. Please try again later." };
+    return { error: await tm("New registrations are paused for a short while. Please try again later.") };
   }
   const ip = await clientIp();
-  if (!(await rateLimitAll([[`register:ip:${ip}`, 5, HOUR]]))) return { error: RATE_LIMITED };
+  if (!(await rateLimitAll([[`register:ip:${ip}`, 5, HOUR]]))) return { error: await tm(RATE_LIMITED) };
 
   const phone = normalizePhone(str(fd, "phone"));
   const password = str(fd, "password");
-  if (!phone) return { error: "Enter a valid 10-digit Indian mobile number." };
+  if (!phone) return { error: await tm("Enter a valid 10-digit Indian mobile number.") };
   const problem = passwordProblem(password, str(fd, "confirm"));
-  if (problem) return { error: problem };
-  if (await isBreachedPassword(password)) return { error: BREACHED_PASSWORD };
-  if (fd.get("terms") !== "on") return { error: "Please accept the terms to continue." };
+  if (problem) return { error: await tm(problem) };
+  if (await isBreachedPassword(password)) return { error: await tm(BREACHED_PASSWORD) };
+  if (fd.get("terms") !== "on") return { error: await tm("Please accept the terms to continue.") };
 
   if (await db.user.findUnique({ where: { phone } })) {
-    return { error: "This number is already registered. Please log in." };
+    return { error: await tm("This number is already registered. Please log in.") };
   }
   const ref = str(fd, "ref").toUpperCase().slice(0, 32);
   const referrer = ref ? await db.user.findUnique({ where: { referralCode: ref }, select: { id: true } }) : null;
@@ -76,12 +77,12 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
     [`login:ip:${ip}`, 20, 15 * MINUTE],
     [`login:phone:${phone ?? "invalid"}`, 8, 15 * MINUTE],
   ]);
-  if (!allowed) return { error: RATE_LIMITED };
+  if (!allowed) return { error: await tm(RATE_LIMITED) };
 
   const password = str(fd, "password");
   const user = phone ? await db.user.findUnique({ where: { phone }, include: { profile: { select: { id: true } }, managing: { select: { id: true } } } }) : null;
   const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
-  if (!user || !ok) return { error: "Incorrect mobile number or password." };
+  if (!user || !ok) return { error: await tm("Incorrect mobile number or password.") };
   const blocked = await accountBlock(user);
   if (blocked) return { error: blocked };
 
@@ -94,7 +95,7 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   if (isStaff(user) && staffTwoFactor()) {
     const sent = await issueOtp(user.id, user.phone, "staff_login");
     // Within the resend cooldown the previous code is still valid, so carry on to the code page.
-    if (!sent.ok && !sent.error.startsWith("Please wait")) return { error: sent.error };
+    if (!sent.ok && !sent.error.startsWith("Please wait")) return { error: await tm(sent.error) };
     await destroySession();
     await createStaffPending(user.id);
     return { redirect: "/login/staff" };
@@ -108,16 +109,16 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
 export async function verifyStaffLogin(_: FormState, fd: FormData): Promise<FormState> {
   const userId = await readStaffPending();
   if (!userId) return { error: TIMED_OUT, redirect: "/login" };
-  if (!(await rateLimitAll([[`staff-otp:${userId}`, 10, 15 * MINUTE]]))) return { error: RATE_LIMITED };
+  if (!(await rateLimitAll([[`staff-otp:${userId}`, 10, 15 * MINUTE]]))) return { error: await tm(RATE_LIMITED) };
   const code = str(fd, "code");
-  if (!/^\d{6}$/.test(code)) return { error: "Enter the 6-digit code." };
+  if (!/^\d{6}$/.test(code)) return { error: await tm("Enter the 6-digit code.") };
 
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user || !isStaff(user)) return { error: TIMED_OUT, redirect: "/login" };
   const blocked = await accountBlock(user);
   if (blocked) return { error: blocked };
   const result = await checkOtp(user.id, code, "staff_login");
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: await tm(result.error) };
 
   await clearStaffPending();
   await createSession(user.id, user.sessionVersion);
@@ -132,17 +133,17 @@ export async function resendStaffOtp(): Promise<FormState> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, phone: true } });
   if (!user) return { error: TIMED_OUT, redirect: "/login" };
   const result = await issueOtp(user.id, user.phone, "staff_login");
-  return result.ok ? { message: "A new code has been sent." } : { error: result.error };
+  return result.ok ? { message: await tm("A new code has been sent.") } : { error: await tm(result.error) };
 }
 
 export async function verifyOtp(_: FormState, fd: FormData): Promise<FormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const code = str(fd, "code");
-  if (!/^\d{6}$/.test(code)) return { error: "Enter the 6-digit code." };
+  if (!/^\d{6}$/.test(code)) return { error: await tm("Enter the 6-digit code.") };
 
   const result = await checkOtp(user.id, code);
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: await tm(result.error) };
   await db.user.update({ where: { id: user.id }, data: { phoneVerified: true } });
   return { redirect: homePath(user, !!user.profile) };
 }
@@ -151,7 +152,7 @@ export async function resendOtp(): Promise<FormState> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const result = await issueOtp(user.id, user.phone);
-  return result.ok ? { message: "A new code has been sent." } : { error: result.error };
+  return result.ok ? { message: await tm("A new code has been sent.") } : { error: await tm(result.error) };
 }
 
 /**
@@ -175,9 +176,9 @@ export async function logout() {
 /** Step 1 of reset: always answers the same way so it cannot reveal which numbers are registered. */
 export async function requestPasswordReset(_: FormState, fd: FormData): Promise<FormState> {
   const ip = await clientIp();
-  if (!(await rateLimitAll([[`reset:ip:${ip}`, 10, HOUR]]))) return { error: RATE_LIMITED };
+  if (!(await rateLimitAll([[`reset:ip:${ip}`, 10, HOUR]]))) return { error: await tm(RATE_LIMITED) };
   const phone = normalizePhone(str(fd, "phone"));
-  if (!phone) return { error: "Enter a valid 10-digit Indian mobile number." };
+  if (!phone) return { error: await tm("Enter a valid 10-digit Indian mobile number.") };
 
   const user = await db.user.findUnique({ where: { phone } });
   if (user) await issueOtp(user.id, phone);
@@ -191,19 +192,19 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
     [`reset-verify:ip:${ip}`, 20, HOUR],
     [`reset-verify:phone:${phone ?? "invalid"}`, 10, HOUR],
   ]);
-  if (!allowed) return { error: RATE_LIMITED };
+  if (!allowed) return { error: await tm(RATE_LIMITED) };
 
   const code = str(fd, "code");
   const password = str(fd, "password");
-  if (!phone || !/^\d{6}$/.test(code)) return { error: "Enter your mobile number and the 6-digit code." };
+  if (!phone || !/^\d{6}$/.test(code)) return { error: await tm("Enter your mobile number and the 6-digit code.") };
   const problem = passwordProblem(password, str(fd, "confirm"));
-  if (problem) return { error: problem };
-  if (await isBreachedPassword(password)) return { error: BREACHED_PASSWORD };
+  if (problem) return { error: await tm(problem) };
+  if (await isBreachedPassword(password)) return { error: await tm(BREACHED_PASSWORD) };
 
   const user = await db.user.findUnique({ where: { phone } });
-  if (!user) return { error: "Incorrect or expired code." };
+  if (!user) return { error: await tm("Incorrect or expired code.") };
   const result = await checkOtp(user.id, code);
-  if (!result.ok) return { error: result.error };
+  if (!result.ok) return { error: await tm(result.error) };
 
   // Possession of the phone also proves it is verified. Bumping the version signs out every other device.
   const updated = await db.user.update({
@@ -219,19 +220,19 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
 
 export async function changePassword(_: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser();
-  if (!(await rateLimitAll([[`change-pw:${user.id}`, 5, 15 * MINUTE]]))) return { error: RATE_LIMITED };
-  if (!(await bcrypt.compare(str(fd, "current"), user.passwordHash))) return { error: "Current password is incorrect." };
+  if (!(await rateLimitAll([[`change-pw:${user.id}`, 5, 15 * MINUTE]]))) return { error: await tm(RATE_LIMITED) };
+  if (!(await bcrypt.compare(str(fd, "current"), user.passwordHash))) return { error: await tm("Current password is incorrect.") };
   const password = str(fd, "password");
   const problem = passwordProblem(password, str(fd, "confirm"));
-  if (problem) return { error: problem };
-  if (await isBreachedPassword(password)) return { error: BREACHED_PASSWORD };
+  if (problem) return { error: await tm(problem) };
+  if (await isBreachedPassword(password)) return { error: await tm(BREACHED_PASSWORD) };
 
   const updated = await db.user.update({
     where: { id: user.id },
     data: { passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS), sessionVersion: { increment: 1 } },
   });
   await createSession(updated.id, updated.sessionVersion);
-  return { message: "Password changed. Other devices have been signed out." };
+  return { message: await tm("Password changed. Other devices have been signed out.") };
 }
 
 export async function logoutEverywhere() {
@@ -243,9 +244,9 @@ export async function logoutEverywhere() {
 /** Permanently removes the account and everything linked to it (profile, photos, interests). */
 export async function deleteAccount(_: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser();
-  if (!(await rateLimitAll([[`delete:${user.id}`, 5, 15 * MINUTE]]))) return { error: RATE_LIMITED };
-  if (str(fd, "confirmText") !== "DELETE") return { error: "Type DELETE to confirm." };
-  if (!(await bcrypt.compare(str(fd, "password"), user.passwordHash))) return { error: "Password is incorrect." };
+  if (!(await rateLimitAll([[`delete:${user.id}`, 5, 15 * MINUTE]]))) return { error: await tm(RATE_LIMITED) };
+  if (str(fd, "confirmText") !== "DELETE") return { error: await tm("Type DELETE to confirm.") };
+  if (!(await bcrypt.compare(str(fd, "password"), user.passwordHash))) return { error: await tm("Password is incorrect.") };
   // A family manager's login is deleted without touching the profile they manage.
   const photos = user.isFamilyManager ? [] : await db.photo.findMany({ where: { profile: { userId: user.id } }, select: { id: true } });
   await db.user.delete({ where: { id: user.id } });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Photo, Profile } from "@prisma/client";
 import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
+import { getT, getTx } from "@/lib/i18n";
 import { type MatchProfile, matchScore } from "@/lib/match";
 import { isPremium } from "@/lib/premium";
 import { ActiveIndicator, IdVerifiedBadge, MatchBadge, PhotoVerifiedBadge, PremiumBadge } from "./Badges";
@@ -13,7 +14,8 @@ const NEW_FOR_MS = 14 * 24 * 60 * 60 * 1000;
  * `photo` is the primary photo the viewer may see, already access-checked. Pass `viewer` to show
  * a match score.
  */
-export function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; photo?: Photo; viewer?: MatchProfile }) {
+export async function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; photo?: Photo; viewer?: MatchProfile }) {
+  const [t, tx] = await Promise.all([getT(), getTx()]);
   const match = viewer ? matchScore(viewer, profile) : null;
   const isNew = Date.now() - profile.createdAt.getTime() < NEW_FOR_MS;
   const photoHidden = !photo && profile.photos.some((ph) => ph.approved);
@@ -21,6 +23,9 @@ export function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; 
   return (
     <Link
       href={`/profiles/${profile.code}`}
+      // Result grids show dozens of cards; prefetching each dynamic profile page costs a server
+      // render per card and can stall form submissions on the same page.
+      prefetch={false}
       className="group overflow-hidden rounded-2xl border border-hairline bg-white shadow-soft transition duration-300 hover:-translate-y-0.5 hover:border-gold/50 hover:shadow-lift"
     >
       <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden bg-gradient-to-br from-sand to-gold-light/60">
@@ -39,18 +44,18 @@ export function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; 
         )}
         <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
           {isNew ? (
-            <span className="eyebrow rounded-full bg-white/90 px-2.5 py-1 !text-[0.6rem] text-maroon shadow-sm backdrop-blur">New</span>
+            <span className="eyebrow rounded-full bg-white/90 px-2.5 py-1 !text-[0.6rem] text-maroon shadow-sm backdrop-blur">{t("card.new")}</span>
           ) : (
             <span />
           )}
           <span
             className="flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[0.65rem] font-medium text-emerald-800 shadow-sm backdrop-blur"
-            title="Mobile verified and profile reviewed"
+            title={t("card.reviewedTitle")}
           >
             <svg viewBox="0 0 20 20" className="h-3 w-3" fill="currentColor" aria-hidden>
               <path d="M10 1.5l2.2 1.6 2.7-.1.9 2.6 2.2 1.6-.8 2.6.8 2.6-2.2 1.6-.9 2.6-2.7-.1L10 18.5l-2.2-1.6-2.7.1-.9-2.6L2 12.8l.8-2.6L2 7.6l2.2-1.6.9-2.6 2.7.1L10 1.5zm-1 11.3l5-5-1.2-1.2L9 10.4 7.2 8.6 6 9.8l3 3z" />
             </svg>
-            Reviewed
+            {t("card.reviewed")}
           </span>
         </div>
         {photoHidden && (
@@ -59,7 +64,7 @@ export function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; 
               <rect x="5" y="11" width="14" height="9" rx="2" />
               <path d="M8 11V8a4 4 0 018 0v3" />
             </svg>
-            Photo visible on acceptance
+            {t("card.photoOnAcceptance")}
           </span>
         )}
       </div>
@@ -76,8 +81,8 @@ export function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; 
         )}
         <div className="my-3 h-px bg-hairline" />
         <p className="text-sm text-stone-700">
-          {ageFrom(profile.dateOfBirth)} yrs{height ? ` · ${height}` : ""}
-          {profile.star ? ` · ${profile.star}` : ""}
+          {t("common.yrs", { age: ageFrom(profile.dateOfBirth) })}{height ? ` · ${height}` : ""}
+          {profile.star ? ` · ${tx(profile.star)}` : ""}
         </p>
         <p className="mt-1 truncate text-sm text-stone-500">{profile.occupation}</p>
         <p className="mt-1 truncate text-sm text-stone-500">{profile.city}</p>

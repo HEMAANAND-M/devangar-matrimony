@@ -9,18 +9,46 @@ const POLL_MS = 6000;
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
+export type ChatLabels = {
+  conversationWith: string;
+  read: string;
+  sent: string;
+  safetyTip: string;
+  message: string;
+  messageTo: string;
+  sending: string;
+  send: string;
+  hint: string;
+  notSent: string;
+};
+
+const ENGLISH: ChatLabels = {
+  conversationWith: "Conversation with {name}",
+  read: "Read",
+  sent: "Sent",
+  safetyTip: "Safety tip: never send money, gifts or bank details to someone you have not met. Report anything suspicious.",
+  message: "Message",
+  messageTo: "Message {name}",
+  sending: "Sending…",
+  send: "Send",
+  hint: "Enter to send · Shift+Enter for a new line · Never send money to anyone you meet online.",
+  notSent: "Message not sent. Check your connection and try again.",
+};
+
 export function ChatThread({
   interestId,
   initial,
   canSend,
   otherName,
   maxLength,
+  labels = ENGLISH,
 }: {
   interestId: string;
   initial: ChatMessage[];
   canSend: boolean;
   otherName: string;
   maxLength: number;
+  labels?: ChatLabels;
 }) {
   const [messages, setMessages] = useState(initial);
   const [draft, setDraft] = useState("");
@@ -74,7 +102,7 @@ export function ChatThread({
     // Cleared now rather than on success, so anything typed while sending is not wiped.
     setDraft("");
     startTransition(async () => {
-      const result = await sendMessage(interestId, body).catch(() => ({ error: "Message not sent. Check your connection and try again." }) as const);
+      const result = await sendMessage(interestId, body).catch(() => ({ error: labels.notSent }) as const);
       if ("sent" in result && result.sent) merge([result.sent]);
       if (result.error) {
         setError(result.error);
@@ -85,7 +113,7 @@ export function ChatThread({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-[50vh] flex-1 space-y-2 overflow-y-auto px-3 py-5 sm:px-6" aria-live="polite" aria-label={`Conversation with ${otherName}`}>
+      <div className="min-h-[50vh] flex-1 space-y-2 overflow-y-auto px-3 py-5 sm:px-6" aria-live="polite" aria-label={labels.conversationWith.replace("{name}", otherName)}>
         {messages.length === 0 && (
           <p className="py-12 text-center text-sm text-stone-500">
             No messages yet. Start with a warm introduction — about yourself or your family.
@@ -109,12 +137,12 @@ export function ChatThread({
                   {m.body}
                   <span className={`mt-1 flex items-center justify-end gap-1 text-[0.65rem] ${m.mine ? "text-white/70" : "text-stone-400"}`} suppressHydrationWarning>
                     {time(m.createdAt)}
-                    {m.mine && <span aria-label={m.read ? "Read" : "Sent"}>{m.read ? "✓✓" : "✓"}</span>}
+                    {m.mine && <span aria-label={m.read ? labels.read : labels.sent}>{m.read ? "✓✓" : "✓"}</span>}
                   </span>
                 </div>
                 {m.warning && (
                   <p role="note" className="mt-1 max-w-[85%] rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
-                    Safety tip: never send money, gifts or bank details to someone you have not met. Report anything suspicious.
+                    {labels.safetyTip}
                   </p>
                 )}
               </div>
@@ -134,7 +162,7 @@ export function ChatThread({
         >
           {error && <p role="alert" className="mb-2 rounded-lg border border-red-200 bg-red-50/70 px-3 py-2 text-xs text-red-800">{error}</p>}
           <div className="flex items-end gap-2">
-            <label className="sr-only" htmlFor="chat-draft">Message</label>
+            <label className="sr-only" htmlFor="chat-draft">{labels.message}</label>
             <textarea
               id="chat-draft"
               rows={1}
@@ -147,7 +175,7 @@ export function ChatThread({
                   submit();
                 }
               }}
-              placeholder={`Message ${otherName}`}
+              placeholder={labels.messageTo.replace("{name}", otherName)}
               className="max-h-40 min-h-[44px] flex-1 resize-y rounded-2xl border border-hairline bg-cream/40 px-4 py-2.5 text-sm focus:border-gold focus:bg-white focus:outline-none focus:ring-4 focus:ring-gold/15"
             />
             <button
@@ -155,10 +183,10 @@ export function ChatThread({
               disabled={pending || !draft.trim()}
               className="h-11 shrink-0 rounded-full bg-maroon px-5 text-sm font-medium text-white shadow-soft transition hover:bg-maroon-dark disabled:opacity-50"
             >
-              {pending ? "Sending…" : "Send"}
+              {pending ? labels.sending : labels.send}
             </button>
           </div>
-          <p className="mt-1.5 text-[0.7rem] text-stone-400">Enter to send · Shift+Enter for a new line · Never send money to anyone you meet online.</p>
+          <p className="mt-1.5 text-[0.7rem] text-stone-400">{labels.hint}</p>
         </form>
       )}
     </div>

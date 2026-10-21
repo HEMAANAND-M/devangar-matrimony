@@ -119,12 +119,17 @@ export async function refundPayment(paymentId: string, _: FormState, fd: FormDat
   if (!amount || amount > payment.amount) return { error: `Refund must be between ₹1 and the paid amount.` };
   const revoke = fd.get("revoke") === "on";
 
+  // Claim the payment first, so two admins clicking at once cannot both send money back.
+  const claimed = await db.payment.updateMany({ where: { id: payment.id, status: "PAID", refundedAt: null }, data: { refundedAt: new Date() } });
+  if (!claimed.count) return { error: "This payment is already being refunded." };
+
   let refundId: string | null = null;
   if (razorpayConfigured() && payment.razorpayPaymentId && !payment.demo && !payment.offline) {
     try {
       refundId = (await refundRazorpayPayment(payment.razorpayPaymentId, amount, { paymentId: payment.id, by: admin.id })).id;
     } catch (e) {
       console.error(e);
+      await db.payment.update({ where: { id: payment.id }, data: { refundedAt: null } });
       return { error: "Razorpay could not process the refund. Check the Razorpay dashboard and try again." };
     }
   }

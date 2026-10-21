@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { PageHeader } from "@/components/Card";
 import { getFaq } from "@/lib/content";
+import { getT } from "@/lib/i18n";
 
 export const metadata = {
   title: "Frequently asked questions",
@@ -16,6 +17,7 @@ export default async function FaqPage() {
     mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
   };
 
+  const t = await getT();
   return (
     <div className="mx-auto max-w-3xl">
       <script
@@ -24,7 +26,7 @@ export default async function FaqPage() {
         // "<" is escaped so answer text can never close the script element.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
-      <PageHeader eyebrow="Help" title="Frequently asked questions" subtitle="Everything families usually ask before they join." />
+      <PageHeader eyebrow={t("faq.eyebrow")} title={t("faq.title")} subtitle={t("faq.subtitle")} />
       <div className="divide-y divide-hairline rounded-2xl border border-hairline bg-white shadow-soft">
         {faq.map((f) => (
           <details key={f.q} className="group px-6 py-5 sm:px-8">
@@ -37,7 +39,7 @@ export default async function FaqPage() {
         ))}
       </div>
       <p className="mt-10 text-center text-sm text-stone-600">
-        Still have a question? <Link href="/support" className="text-maroon underline decoration-gold/50 underline-offset-4">Contact our team</Link>.
+        {t("faq.still")} <Link href="/support" className="text-maroon underline decoration-gold/50 underline-offset-4">{t("faq.contact")}</Link>.
       </p>
     </div>
   );

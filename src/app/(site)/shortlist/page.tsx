@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/Card";
 import { ProfileCard, cardPhoto } from "@/components/ProfileCard";
 import { connectedIds } from "@/lib/access";
 import { db } from "@/lib/db";
+import { getT } from "@/lib/i18n";
 import { withCard } from "@/lib/queries";
 import { requireProfile } from "@/lib/session";
 
@@ -18,20 +19,21 @@ export default async function ShortlistPage() {
     }),
     connectedIds(profile.id),
   ]);
+  const t = await getT();
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow="Saved profiles" title="Shortlist" subtitle="Profiles you are considering, in one place." />
+      <PageHeader eyebrow={t("shortlist.eyebrow")} title={t("shortlist.title")} subtitle={t("shortlist.subtitle")} />
       {items.length ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           {items.map(({ target }) => <ProfileCard key={target.id} profile={target} photo={cardPhoto(target, connected)} viewer={profile} />)}
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-gold/40 bg-white px-6 py-12 text-center">
-          <p className="font-display text-2xl text-maroon">Your shortlist is empty</p>
+          <p className="font-display text-2xl text-maroon">{t("shortlist.empty")}</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-stone-600">
-            Use “Add to shortlist” on any profile to keep it here while your family discusses it. Only you can see your shortlist.
+            {t("shortlist.emptyBody")}
           </p>
-          <Link href="/search" className="mt-5 inline-block rounded-full bg-maroon px-6 py-2.5 text-sm font-medium text-white shadow-soft hover:bg-maroon-dark">Find profiles</Link>
+          <Link href="/search" className="mt-5 inline-block rounded-full bg-maroon px-6 py-2.5 text-sm font-medium text-white shadow-soft hover:bg-maroon-dark">{t("shortlist.find")}</Link>
         </div>
       )}
     </div>

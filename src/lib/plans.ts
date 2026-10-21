@@ -31,7 +31,8 @@ export type CouponResult = { ok: true; code: string; discount: number } | { ok: 
  * Validates a coupon for a plan and returns the discount in paise. The total never drops below
  * ₹1, which is Razorpay's minimum charge.
  */
-export async function evaluateCoupon(rawCode: string, plan: Plan): Promise<CouponResult> {
+/** `profileId`: each coupon can be used once per profile (festival offers are per family, not per renewal). */
+export async function evaluateCoupon(rawCode: string, plan: Plan, profileId?: string): Promise<CouponResult> {
   const code = normalizeCoupon(rawCode);
   if (!code) return { ok: false, error: "Enter a coupon code." };
   const coupon = await db.coupon.findUnique({ where: { code } });
@@ -39,6 +40,9 @@ export async function evaluateCoupon(rawCode: string, plan: Plan): Promise<Coupo
   if (coupon.expiresAt && coupon.expiresAt < new Date()) return { ok: false, error: "This coupon has expired." };
   if (coupon.maxUses != null && coupon.uses >= coupon.maxUses) return { ok: false, error: "This coupon has been fully used." };
   if (coupon.plans.length && !coupon.plans.includes(plan.id)) return { ok: false, error: `This coupon does not apply to ${plan.name}.` };
+  if (profileId && (await db.payment.findFirst({ where: { profileId, couponCode: code, status: { in: ["PAID", "REFUNDED"] } }, select: { id: true } }))) {
+    return { ok: false, error: "You have already used this coupon." };
+  }
   const raw = coupon.percentOff ? Math.round((plan.amount * coupon.percentOff) / 100) : (coupon.amountOff ?? 0);
   const discount = Math.max(0, Math.min(raw, plan.amount - 100));
   return { ok: true, code, discount };

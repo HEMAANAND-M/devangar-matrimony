@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/Card";
 import { cardPhoto } from "@/components/ProfileCard";
 import { db } from "@/lib/db";
 import { photoUrl } from "@/lib/format";
+import { getT } from "@/lib/i18n";
 import { isPremium } from "@/lib/premium";
 import { withPhotos } from "@/lib/queries";
 import { requireProfile } from "@/lib/session";
@@ -44,18 +45,19 @@ export default async function MessagesPage() {
     .sort((a, b) => b.at.getTime() - a.at.getTime());
 
   const anyPremium = isPremium(profile) || conversations.some((c) => isPremium(c.other));
+  const t = await getT();
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader eyebrow="Your conversations" title="Messages" subtitle="Chat privately with members who have accepted an interest." />
+      <PageHeader eyebrow={t("chat.eyebrow")} title={t("chat.title")} subtitle={t("chat.subtitle")} />
 
       {!enabled && (
-        <p className="mb-4 rounded-xl border border-hairline bg-white px-4 py-3 text-sm text-stone-600">Messaging is switched off for now. Please check back later.</p>
+        <p className="mb-4 rounded-xl border border-hairline bg-white px-4 py-3 text-sm text-stone-600">{t("msg.chatDisabled")}</p>
       )}
       {enabled && !anyPremium && conversations.length > 0 && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-gradient-to-r from-cream to-gold-light/30 px-5 py-4 text-sm">
-          <p className="text-stone-700">Messaging opens when at least one of you is a Premium member.</p>
-          <Link href="/upgrade" className="rounded-full bg-maroon px-5 py-2 text-xs font-medium text-white shadow-soft hover:bg-maroon-dark">Upgrade to Premium</Link>
+          <p className="text-stone-700">{t("chat.premiumBanner")}</p>
+          <Link href="/upgrade" className="rounded-full bg-maroon px-5 py-2 text-xs font-medium text-white shadow-soft hover:bg-maroon-dark">{t("chat.upgrade")}</Link>
         </div>
       )}
 
@@ -64,9 +66,9 @@ export default async function MessagesPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sand text-gold-dark" aria-hidden>
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 5h16v11H8l-4 4V5z" /></svg>
           </div>
-          <h2 className="text-2xl text-maroon">No conversations yet</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-stone-600">When a member accepts your interest, or you accept theirs, you can message each other here.</p>
-          <Link href="/search" className="mt-6 inline-block rounded-full bg-maroon px-6 py-2.5 text-sm font-medium text-white shadow-soft hover:bg-maroon-dark">Find matches</Link>
+          <h2 className="text-2xl text-maroon">{t("chat.empty")}</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-stone-600">{t("chat.emptyBody")}</p>
+          <Link href="/search" className="mt-6 inline-block rounded-full bg-maroon px-6 py-2.5 text-sm font-medium text-white shadow-soft hover:bg-maroon-dark">{t("chat.findMatches")}</Link>
         </div>
       ) : (
         <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-white shadow-soft">
@@ -92,7 +94,7 @@ export default async function MessagesPage() {
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-3">
                       <span className={`truncate text-sm ${c.unread ? "text-ink" : "text-stone-500"}`}>
-                        {c.last ? `${c.last.senderId === profile.id ? "You: " : ""}${c.last.body}` : "Say hello 👋"}
+                        {c.last ? `${c.last.senderId === profile.id ? t("chat.you") : ""}${c.last.body}` : t("chat.sayHello")}
                       </span>
                       {c.unread > 0 && (
                         <span className="shrink-0 rounded-full bg-maroon px-2 py-0.5 text-[0.65rem] font-semibold tabular-nums text-white">{c.unread}</span>

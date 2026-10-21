@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/Card";
 import { db } from "@/lib/db";
+import { getT } from "@/lib/i18n";
 
 export const metadata = {
   title: "Community events",
@@ -17,9 +18,10 @@ export default async function EventsPage() {
     db.event.findMany({ where: { published: true, startsAt: { lt: now }, OR: [{ endsAt: null }, { endsAt: { lt: now } }] }, orderBy: { startsAt: "desc" }, take: 12 }),
   ]);
 
+  const t = await getT();
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader eyebrow="Community" title="Events" subtitle="Sangam meets, temple festivals and matrimony gatherings across the community." />
+      <PageHeader eyebrow={t("events.eyebrow")} title={t("events.title")} subtitle={t("events.subtitle")} />
       {upcoming.length ? (
         <ol className="space-y-5">
           {upcoming.map((e) => (
@@ -34,7 +36,7 @@ export default async function EventsPage() {
                 <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-stone-700">{e.description}</p>
                 {e.href && (
                   <a href={e.href} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-maroon underline decoration-gold/50 underline-offset-4">
-                    Event details
+                    {t("events.details")}
                   </a>
                 )}
               </div>
@@ -42,12 +44,12 @@ export default async function EventsPage() {
           ))}
         </ol>
       ) : (
-        <p className="rounded-2xl border border-hairline bg-white px-6 py-10 text-center text-stone-600 shadow-soft">No upcoming events right now. Please check back soon.</p>
+        <p className="rounded-2xl border border-hairline bg-white px-6 py-10 text-center text-stone-600 shadow-soft">{t("events.none")}</p>
       )}
 
       {past.length > 0 && (
         <section className="mt-14">
-          <h2 className="text-2xl text-maroon">Past events</h2>
+          <h2 className="text-2xl text-maroon">{t("events.past")}</h2>
           <ul className="mt-4 divide-y divide-hairline rounded-2xl border border-hairline bg-white px-6 shadow-soft">
             {past.map((e) => (
               <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3 text-sm">

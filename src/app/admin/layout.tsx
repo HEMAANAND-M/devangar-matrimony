@@ -101,10 +101,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </summary>
             <div className="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-gradient-to-b from-maroon-dark to-[#2c0712] px-3 py-6 shadow-lift">{sidebar}</div>
           </details>
-          <p className="text-sm text-stone-500">
+          <p className="hidden text-sm text-stone-500 md:block">
             <span className="font-medium text-ink">{isAdmin ? "Administrator" : "Moderator"}</span>
-            <span className="hidden sm:inline"> · {maskPhone(staff.phone)}</span>
+            <span className="hidden xl:inline"> · {maskPhone(staff.phone)}</span>
           </p>
+          <form action="/admin/members" method="get" role="search" className="ml-2 min-w-0 flex-1 md:max-w-sm">
+            <label className="sr-only" htmlFor="admin-search">Find a member</label>
+            <input
+              id="admin-search"
+              name="q"
+              type="search"
+              placeholder="Find a member — name, DM code or phone"
+              className="w-full rounded-lg border border-hairline bg-cream/60 px-3 py-1.5 text-sm placeholder:text-stone-400 focus:border-gold focus:bg-white focus:outline-none focus:ring-2 focus:ring-gold/25"
+            />
+          </form>
           <div className="ml-auto flex items-center gap-2">
             <Link href="/" className="rounded-lg px-3 py-1.5 text-sm text-stone-600 transition hover:bg-sand hover:text-maroon">View site</Link>
             <SignOutButton className="rounded-lg border border-hairline px-3 py-1.5 text-sm text-stone-600 transition hover:border-gold hover:text-maroon">Sign out</SignOutButton>

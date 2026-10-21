@@ -1,8 +1,10 @@
+import { type TKey, getT, getTx } from "@/lib/i18n";
 import type { PoruthamReport } from "@/lib/porutham";
 
-export function PoruthamCard({ report }: { report: PoruthamReport }) {
+export async function PoruthamCard({ report }: { report: PoruthamReport }) {
+  const [t, tx] = await Promise.all([getT(), getTx()]);
   const pct = report.score / report.total;
-  const verdict = !report.essentialOk ? "Essential porutham missing" : pct >= 0.7 ? "Good match" : pct >= 0.5 ? "Average match" : "Low match";
+  const verdict = t(!report.essentialOk ? "porutham.essentialMissing" : pct >= 0.7 ? "porutham.good" : pct >= 0.5 ? "porutham.average" : "porutham.low");
   const tone = !report.essentialOk ? "text-red-700" : pct >= 0.7 ? "text-emerald-700" : pct >= 0.5 ? "text-amber-700" : "text-red-700";
   // Ring progress: circumference of r=34 is ~213.6.
   const dash = 213.6 * pct;
@@ -17,12 +19,12 @@ export function PoruthamCard({ report }: { report: PoruthamReport }) {
           </svg>
           <span className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="font-display text-3xl font-semibold leading-none text-maroon">{report.score}</span>
-            <span className="text-[0.65rem] text-stone-500">of {report.total}</span>
+            <span className="text-[0.65rem] text-stone-500">{t("porutham.of", { total: report.total })}</span>
           </span>
         </div>
         <div>
-          <p className="eyebrow text-gold-dark">Thirumana porutham</p>
-          <h2 className="mt-1 text-2xl text-maroon">Star compatibility</h2>
+          <p className="eyebrow text-gold-dark">{t("porutham.eyebrow")}</p>
+          <h2 className="mt-1 text-2xl text-maroon">{t("porutham.title")}</h2>
           <p className={`mt-1 text-sm font-medium ${tone}`}>{verdict}</p>
         </div>
       </div>
@@ -33,23 +35,22 @@ export function PoruthamCard({ report }: { report: PoruthamReport }) {
               className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.7rem] font-bold ${
                 r.matched ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
               }`}
-              aria-label={r.matched ? "Matched" : "Not matched"}
+              aria-label={t(r.matched ? "porutham.matched" : "porutham.notMatched")}
             >
               {r.matched ? "✓" : "✕"}
             </span>
             <span>
               <span className="font-medium text-ink">
-                {r.name}
-                {r.essential && <span className="ml-1.5 text-[0.65rem] uppercase tracking-wider text-gold-dark">essential</span>}
+                {t(`porutham.${r.name}` as TKey)}
+                {r.essential && <span className="ml-1.5 text-[0.65rem] uppercase tracking-wider text-gold-dark">{t("porutham.essential")}</span>}
               </span>
-              <span className="block text-xs text-stone-500">{r.note}</span>
+              <span className="block text-xs text-stone-500">{tx(r.note)}</span>
             </span>
           </li>
         ))}
       </ul>
       <p className="mt-4 text-xs leading-relaxed text-stone-500">
-        Calculated from the stars and rasis entered on both profiles. This is an indication only — please consult your
-        family astrologer with full horoscopes before deciding.
+        {t("porutham.note")}
       </p>
     </section>
   );

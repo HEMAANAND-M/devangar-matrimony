@@ -8,6 +8,7 @@ import { type FormState, str } from "@/lib/form";
 import { HOUR, RATE_LIMITED, rateLimitAll } from "@/lib/rate-limit";
 import { MAX_FAMILY_MANAGERS } from "@/lib/family";
 import { requireUser } from "@/lib/session";
+import { tm } from "@/lib/i18n";
 
 const RELATIONS = ["FATHER", "MOTHER", "BROTHER", "SISTER", "GUARDIAN", "OTHER"] as const;
 const INVITE_DAYS = 7;
@@ -21,19 +22,19 @@ async function requireOwner() {
 
 export async function inviteFamilyMember(_: FormState, fd: FormData): Promise<FormState> {
   const { user, profile } = await requireOwner();
-  if (!(await rateLimitAll([[`family-invite:${user.id}`, 10, 24 * HOUR]]))) return { error: RATE_LIMITED };
+  if (!(await rateLimitAll([[`family-invite:${user.id}`, 10, 24 * HOUR]]))) return { error: await tm(RATE_LIMITED) };
 
   const phone = normalizePhone(str(fd, "phone"));
   const relation = str(fd, "relation") as (typeof RELATIONS)[number];
-  if (!phone) return { error: "Enter a valid 10-digit Indian mobile number." };
-  if (!RELATIONS.includes(relation)) return { error: "Choose how they are related to you." };
-  if (phone === user.phone) return { error: "That is your own number." };
+  if (!phone) return { error: await tm("Enter a valid 10-digit Indian mobile number.") };
+  if (!RELATIONS.includes(relation)) return { error: await tm("Choose how they are related to you.") };
+  if (phone === user.phone) return { error: await tm("That is your own number.") };
 
   const [managers, invites] = await Promise.all([
     db.profileManager.count({ where: { profileId: profile.id } }),
     db.familyInvite.count({ where: { profileId: profile.id, expiresAt: { gt: new Date() } } }),
   ]);
-  if (managers + invites >= MAX_FAMILY_MANAGERS) return { error: `Up to ${MAX_FAMILY_MANAGERS} family members can manage a profile.` };
+  if (managers + invites >= MAX_FAMILY_MANAGERS) return { error: await tm(`Up to ${MAX_FAMILY_MANAGERS} family members can manage a profile.`) };
 
   await db.familyInvite.upsert({
     where: { profileId_phone: { profileId: profile.id, phone } },
@@ -41,7 +42,7 @@ export async function inviteFamilyMember(_: FormState, fd: FormData): Promise<Fo
     update: { relation, expiresAt: new Date(Date.now() + INVITE_DAYS * 24 * HOUR) },
   });
   revalidatePath("/settings");
-  return { message: `Invitation created. Ask them to register or log in with ${phone} within ${INVITE_DAYS} days to accept.` };
+  return { message: await tm(`Invitation created. Ask them to register or log in with ${phone} within ${INVITE_DAYS} days to accept.`) };
 }
 
 export async function cancelFamilyInvite(inviteId: string) {

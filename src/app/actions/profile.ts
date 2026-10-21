@@ -18,6 +18,7 @@ import { averageHash } from "@/lib/flags";
 import { deletePhoto as deleteStoredPhoto, putPhoto } from "@/lib/storage";
 import { HOUR, RATE_LIMITED, rateLimitAll } from "@/lib/rate-limit";
 import { requireProfile, requireUser } from "@/lib/session";
+import { tm } from "@/lib/i18n";
 
 /** Optional field: empty input becomes null so updates can clear it. */
 const o = <T extends z.ZodTypeAny>(s: T) => s.optional().transform((v) => v ?? null);
@@ -108,11 +109,11 @@ export async function saveProfile(_: FormState, fd: FormData): Promise<FormState
   raw.horoscopeVisibility ??= "ACCEPTED_ONLY";
 
   const parsed = profileSchema.safeParse(raw);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form." };
+  if (!parsed.success) return { error: await tm(parsed.error.issues[0]?.message ?? "Please check the form.") };
   const data = parsed.data;
   for (const field of ["about", "siblings", "prefNotes", "fatherOccupation", "motherOccupation", "fatherName", "motherName", "nativePlace"] as const) {
     const found = findContactInfo(data[field]);
-    if (found) return { error: `Please remove ${found} from your profile. Contact details are shared only after an interest is accepted.` };
+    if (found) return { error: await tm(`Please remove ${found} from your profile. Contact details are shared only after an interest is accepted.`) };
   }
 
   const existing = user.profile;
@@ -122,7 +123,7 @@ export async function saveProfile(_: FormState, fd: FormData): Promise<FormState
     const status = existing.status === "APPROVED" && !changed ? "APPROVED" : existing.status === "HIDDEN" ? "HIDDEN" : "PENDING";
     await db.profile.update({ where: { id: existing.id }, data: { ...data, status, rejectionReason: null } });
     revalidatePath("/", "layout");
-    return { message: status === "PENDING" ? "Saved. Your changes will be reviewed shortly." : "Profile saved." };
+    return { message: await tm(status === "PENDING" ? "Saved. Your changes will be reviewed shortly." : "Profile saved.") };
   }
 
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -147,16 +148,16 @@ export async function setProfileHidden(hidden: boolean) {
 export async function uploadPhoto(_: FormState, fd: FormData): Promise<FormState> {
   const { profile } = await requireProfile();
   const file = fd.get("photo");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo to upload." };
-  if (file.size > MAX_PHOTO_BYTES) return { error: "Photo must be 5 MB or smaller." };
+  if (!(file instanceof File) || file.size === 0) return { error: await tm("Choose a photo to upload.") };
+  if (file.size > MAX_PHOTO_BYTES) return { error: await tm("Photo must be 5 MB or smaller.") };
 
-  if (!(await rateLimitAll([[`upload:${profile.id}`, 20, HOUR]]))) return { error: RATE_LIMITED };
+  if (!(await rateLimitAll([[`upload:${profile.id}`, 20, HOUR]]))) return { error: await tm(RATE_LIMITED) };
 
   const count = await db.photo.count({ where: { profileId: profile.id } });
-  if (count >= MAX_PHOTOS) return { error: `You can upload up to ${MAX_PHOTOS} photos.` };
+  if (count >= MAX_PHOTOS) return { error: await tm(`You can upload up to ${MAX_PHOTOS} photos.`) };
 
   const processed = await processPhoto(Buffer.from(await file.arrayBuffer()));
-  if (!processed) return { error: "Only JPEG, PNG or WebP images are allowed." };
+  if (!processed) return { error: await tm("Only JPEG, PNG or WebP images are allowed.") };
 
   // Hashed now so duplicate photos across accounts are flagged as soon as they reach review.
   const hash = await averageHash(processed.thumb).catch(() => null);
@@ -166,10 +167,10 @@ export async function uploadPhoto(_: FormState, fd: FormData): Promise<FormState
   } catch (e) {
     console.error("[storage] photo upload failed:", e instanceof Error ? e.message : e);
     await db.photo.delete({ where: { id: photo.id } });
-    return { error: "We couldn't save the photo. Please try again." };
+    return { error: await tm("We couldn't save the photo. Please try again.") };
   }
   revalidatePath("/photos");
-  return { message: "Uploaded. The photo will be visible to others after review." };
+  return { message: await tm("Uploaded. The photo will be visible to others after review.") };
 }
 
 async function ownPhoto(photoId: string) {
@@ -202,12 +203,12 @@ export async function makePrimaryPhoto(photoId: string) {
 export async function uploadHoroscope(_: FormState, fd: FormData): Promise<FormState> {
   const { profile } = await requireProfile();
   const file = fd.get("horoscope");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose your horoscope file to upload." };
-  if (file.size > MAX_HOROSCOPE_BYTES) return { error: "The file must be 5 MB or smaller." };
-  if (!(await rateLimitAll([[`horoscope:${profile.id}`, 10, HOUR]]))) return { error: RATE_LIMITED };
+  if (!(file instanceof File) || file.size === 0) return { error: await tm("Choose your horoscope file to upload.") };
+  if (file.size > MAX_HOROSCOPE_BYTES) return { error: await tm("The file must be 5 MB or smaller.") };
+  if (!(await rateLimitAll([[`horoscope:${profile.id}`, 10, HOUR]]))) return { error: await tm(RATE_LIMITED) };
 
   const processed = await processHoroscope(Buffer.from(await file.arrayBuffer()));
-  if (!processed) return { error: "Upload a PDF, JPEG, PNG or WebP file." };
+  if (!processed) return { error: await tm("Upload a PDF, JPEG, PNG or WebP file.") };
   const data = new Uint8Array(processed.data);
   await db.horoscope.upsert({
     where: { profileId: profile.id },
@@ -216,7 +217,7 @@ export async function uploadHoroscope(_: FormState, fd: FormData): Promise<FormS
   });
   revalidatePath("/profile/edit");
   revalidatePath(`/profiles/${profile.code}`);
-  return { message: "Horoscope uploaded." };
+  return { message: await tm("Horoscope uploaded.") };
 }
 
 export async function deleteHoroscope(): Promise<FormState> {
@@ -224,5 +225,5 @@ export async function deleteHoroscope(): Promise<FormState> {
   await db.horoscope.deleteMany({ where: { profileId: profile.id } });
   revalidatePath("/profile/edit");
   revalidatePath(`/profiles/${profile.code}`);
-  return { message: "Horoscope removed." };
+  return { message: await tm("Horoscope removed.") };
 }

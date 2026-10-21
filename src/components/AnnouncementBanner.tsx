@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getT } from "@/lib/i18n";
 import { isPremium } from "@/lib/premium";
 import { getCurrentUser, isStaff } from "@/lib/session";
 import { DismissibleAnnouncements } from "./DismissibleAnnouncements";
@@ -29,5 +30,7 @@ export async function AnnouncementBanner() {
     }
   };
   const items = list.filter((a) => matches(a.audience)).map((a) => ({ id: a.id, title: a.title, body: a.body, href: a.href }));
-  return items.length ? <DismissibleAnnouncements items={items} /> : null;
+  if (!items.length) return null;
+  const t = await getT();
+  return <DismissibleAnnouncements items={items} learnMore={t("announce.learnMore")} dismissLabel={t("announce.dismiss", { title: "{title}" })} />;
 }

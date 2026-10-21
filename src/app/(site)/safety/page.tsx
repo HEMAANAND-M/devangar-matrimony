@@ -1,16 +1,17 @@
 import { Card, PageHeader } from "@/components/Card";
 import { getSafety } from "@/lib/content";
+import { getT } from "@/lib/i18n";
 
 export const metadata = { title: "Safety guidelines" };
 
 export default async function SafetyPage() {
-  const sections = await getSafety();
+  const [sections, t] = await Promise.all([getSafety(), getT()]);
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        eyebrow="Trust & safety"
-        title="Safety guidelines"
-        subtitle="Simple practices that keep you and your family safe while you search."
+        eyebrow={t("safety.eyebrow")}
+        title={t("safety.title")}
+        subtitle={t("safety.subtitle")}
       />
       <div className="space-y-6">
         {sections.map(({ title, items }) => (

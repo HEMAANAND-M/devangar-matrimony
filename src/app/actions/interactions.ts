@@ -12,6 +12,7 @@ import { FREE_DAILY_INTERESTS, dailyInterestLimit, isPremium } from "@/lib/premi
 import { browsableWhere } from "@/lib/queries";
 import { HOUR, RATE_LIMITED, rateLimitAll } from "@/lib/rate-limit";
 import { requireProfile } from "@/lib/session";
+import { tm } from "@/lib/i18n";
 
 type Viewer = Awaited<ReturnType<typeof requireProfile>>["profile"];
 
@@ -23,27 +24,29 @@ function browsableTarget(targetId: string, viewer: Viewer) {
 export async function sendInterest(targetId: string, _: FormState, fd: FormData): Promise<FormState> {
   const { profile } = await requireProfile();
   if (profile.status !== "APPROVED") {
-    return { error: "You can send interests once your profile is approved." };
+    return { error: await tm("You can send interests once your profile is approved.") };
   }
   const target = await browsableTarget(targetId, profile);
-  if (!target) return { error: "This profile is not available." };
+  if (!target) return { error: await tm("This profile is not available.") };
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sentToday = await db.interest.count({ where: { fromId: profile.id, createdAt: { gte: since } } });
   if (sentToday >= dailyInterestLimit(profile)) {
     return {
-      error: isPremium(profile)
-        ? "Daily interest limit reached. Try again tomorrow."
-        : `Free members can send ${FREE_DAILY_INTERESTS} interests a day. Upgrade to Premium to send more.`,
+      error: await tm(
+        isPremium(profile)
+          ? "Daily interest limit reached. Try again tomorrow."
+          : `Free members can send ${FREE_DAILY_INTERESTS} interests a day. Upgrade to Premium to send more.`,
+      ),
     };
   }
 
   const message = str(fd, "message").slice(0, 300) || null;
   const found = findContactInfo(message);
-  if (found) return { error: `Please remove ${found} from your message. Contact details are shared once the interest is accepted.` };
+  if (found) return { error: await tm(`Please remove ${found} from your message. Contact details are shared once the interest is accepted.`) };
 
   const reverse = await db.interest.findUnique({ where: { fromId_toId: { fromId: target.id, toId: profile.id } } });
-  if (reverse) return { error: "This member has already sent you an interest. Respond to it from Interests." };
+  if (reverse) return { error: await tm("This member has already sent you an interest. Respond to it from Interests.") };
 
   const existing = await db.interest.findUnique({ where: { fromId_toId: { fromId: profile.id, toId: target.id } } });
   if (!existing) {
@@ -51,7 +54,7 @@ export async function sendInterest(targetId: string, _: FormState, fd: FormData)
     await notifyProfile(target.id, "interest_received", { name: target.name.split(" ")[0], fromCode: profile.code, link: link("/interests") });
   }
   revalidatePath(`/profiles/${target.code}`);
-  return { message: "Interest sent." };
+  return { message: await tm("Interest sent.") };
 }
 
 export async function respondInterest(interestId: string, accept: boolean) {
@@ -90,19 +93,19 @@ export async function toggleShortlist(targetId: string) {
 
 export async function reportProfile(targetId: string, _: FormState, fd: FormData): Promise<FormState> {
   const { profile } = await requireProfile();
-  if (!(await rateLimitAll([[`report:${profile.id}`, 10, 24 * HOUR]]))) return { error: RATE_LIMITED };
+  if (!(await rateLimitAll([[`report:${profile.id}`, 10, 24 * HOUR]]))) return { error: await tm(RATE_LIMITED) };
   const reason = str(fd, "reason");
-  if (reason.length < 10) return { error: "Please describe the problem (at least 10 characters)." };
-  if (targetId === profile.id) return { error: "You cannot report your own profile." };
+  if (reason.length < 10) return { error: await tm("Please describe the problem (at least 10 characters).") };
+  if (targetId === profile.id) return { error: await tm("You cannot report your own profile.") };
   if (!(await db.profile.findUnique({ where: { id: targetId }, select: { id: true } }))) {
-    return { error: "This profile is not available." };
+    return { error: await tm("This profile is not available.") };
   }
   const category = str(fd, "category");
   const parsed = Object.hasOwn(REPORT_CATEGORY_LABELS, category) ? (category as ReportCategory) : "OTHER";
   // Safety issues jump the moderation queue.
   const priority = parsed === "HARASSMENT" || parsed === "ASKED_FOR_MONEY" ? 1 : 2;
   await db.report.create({ data: { reporterId: profile.id, targetId, reason: reason.slice(0, 1000), category: parsed, priority } });
-  return { message: "Thank you. Our team will review this profile." };
+  return { message: await tm("Thank you. Our team will review this profile.") };
 }
 
 /**

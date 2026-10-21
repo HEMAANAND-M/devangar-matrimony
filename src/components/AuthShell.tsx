@@ -1,14 +1,12 @@
+import { getT } from "@/lib/i18n";
 import { LogoMark } from "./Logo";
 import { DotPattern, Mandala } from "./Ornaments";
 
-const POINTS = [
-  "Every mobile number verified by OTP",
-  "Every profile reviewed by our team",
-  "Contact details shared only on acceptance",
-];
+const POINTS = ["auth.point1", "auth.point2", "auth.point3"] as const;
 
 /** Two-panel layout for login, registration and OTP pages. */
-export function AuthShell({ eyebrow, title, subtitle, children }: { eyebrow: string; title: string; subtitle?: string; children: React.ReactNode }) {
+export async function AuthShell({ eyebrow, title, subtitle, children }: { eyebrow: string; title: string; subtitle?: string; children: React.ReactNode }) {
+  const t = await getT();
   return (
     <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-hairline bg-white shadow-lift lg:grid-cols-[1fr_1.1fr]">
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-maroon-dark via-maroon to-maroon-light p-10 text-white lg:flex lg:flex-col">
@@ -19,7 +17,7 @@ export function AuthShell({ eyebrow, title, subtitle, children }: { eyebrow: str
         </div>
         <div className="relative mt-auto">
           <p className="font-display text-4xl font-medium leading-tight">
-            “A good match is the beginning of two families coming together.”
+            {t("auth.quote")}
           </p>
           <div className="mt-6 h-px w-12 bg-gold" />
           <ul className="mt-8 space-y-3 text-sm text-white/80">
@@ -28,7 +26,7 @@ export function AuthShell({ eyebrow, title, subtitle, children }: { eyebrow: str
                 <span className="flex h-5 w-5 items-center justify-center rounded-full border border-gold/60 text-gold-light">
                   <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M2.5 6.5l2 2 5-5" /></svg>
                 </span>
-                {p}
+                {t(p)}
               </li>
             ))}
           </ul>

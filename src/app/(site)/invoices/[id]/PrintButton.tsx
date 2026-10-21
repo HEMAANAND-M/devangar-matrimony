@@ -1,13 +1,13 @@
 "use client";
 
-export function PrintButton() {
+export function PrintButton({ label = "Print or save as PDF" }: { label?: string }) {
   return (
     <button
       type="button"
       onClick={() => window.print()}
       className="rounded-full bg-maroon px-6 py-2.5 text-sm font-medium text-white shadow-soft transition hover:bg-maroon-dark"
     >
-      Print or save as PDF
+      {label}
     </button>
   );
 }

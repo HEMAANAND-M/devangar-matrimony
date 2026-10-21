@@ -5,26 +5,28 @@ import { db } from "@/lib/db";
 import { findContactInfo, looksLikeScam } from "@/lib/moderation";
 import { link, notifyProfile } from "@/lib/notify";
 import { MINUTE, rateLimit } from "@/lib/rate-limit";
+import { getTx } from "@/lib/i18n";
 import { requireProfile } from "@/lib/session";
 
 export type SendResult = { error?: string; sent?: ChatMessage };
 
 export async function sendMessage(interestId: string, raw: string): Promise<SendResult> {
   const { profile } = await requireProfile();
+  const tx = await getTx();
   const body = String(raw ?? "").trim();
-  if (!body) return { error: "Type a message first." };
-  if (body.length > MESSAGE_MAX) return { error: `Messages can be up to ${MESSAGE_MAX} characters.` };
+  if (!body) return { error: tx("Type a message first.") };
+  if (body.length > MESSAGE_MAX) return { error: tx(`Messages can be up to ${MESSAGE_MAX} characters.`) };
 
   const convo = await loadConversation(interestId, profile);
-  if (!convo) return { error: "This conversation is not available." };
-  if (convo.block) return { error: CHAT_BLOCK_TEXT[convo.block] };
-  if (!(await rateLimit(`chat:${profile.id}`, 30, MINUTE))) return { error: "You are sending messages too quickly. Please slow down." };
+  if (!convo) return { error: tx("This conversation is not available.") };
+  if (convo.block) return { error: tx(CHAT_BLOCK_TEXT[convo.block]) };
+  if (!(await rateLimit(`chat:${profile.id}`, 30, MINUTE))) return { error: tx("You are sending messages too quickly. Please slow down.") };
 
   // Same rule as interests: numbers and handles are exchanged through a contact request, so a
   // member always gets to approve who has their phone number.
   const found = findContactInfo(body);
   if (found && !(await contactShared(profile.id, convo.other.id))) {
-    return { error: `Please don't share ${found} in chat yet. Use "Request phone number" on their profile — they can approve it.` };
+    return { error: tx(`Please don't share ${tx(found)} in chat yet. Use "Request phone number" on their profile — they can approve it.`) };
   }
 
   const message = await db.message.create({ data: { interestId, senderId: profile.id, body } });

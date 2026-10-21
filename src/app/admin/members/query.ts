@@ -27,6 +27,8 @@ export function memberWhere(params: MemberParams, now = new Date()): Prisma.User
     ...(verified === "no" ? { idVerifiedAt: null } : {}),
     ...(gender === "MALE" || gender === "FEMALE" ? { gender } : {}),
     ...(flagged === "yes" ? { NOT: { flags: { isEmpty: true } } } : {}),
+    // A specific flag name (e.g. "scam_language"), as linked from the dashboard's safety panel.
+    ...(flagged && flagged !== "yes" && /^[a-z_]{3,40}$/.test(flagged) ? { flags: { has: flagged } } : {}),
   };
   const digits = q?.replace(/\D/g, "") ?? "";
 

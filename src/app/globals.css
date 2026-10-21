@@ -14,8 +14,9 @@
   --color-ink: #1e1a17;
   --color-hairline: #e8e0d3;
 
-  --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-cormorant);
+  /* Tamil text falls back per glyph to Noto, which Geist and Cormorant lack. */
+  --font-sans: var(--font-geist-sans), var(--font-noto-tamil), sans-serif;
+  --font-display: var(--font-cormorant), var(--font-noto-serif-tamil), serif;
 
   --shadow-soft: 0 1px 2px rgb(30 26 23 / 0.04), 0 12px 32px -16px rgb(63 11 27 / 0.18);
   --shadow-lift: 0 2px 4px rgb(30 26 23 / 0.05), 0 24px 48px -20px rgb(63 11 27 / 0.28);
@@ -32,7 +33,7 @@
   h2,
   h3 {
     /* The next/font variable directly: `inline` theme tokens are not emitted as CSS variables. */
-    font-family: var(--font-cormorant), Georgia, serif;
+    font-family: var(--font-cormorant), var(--font-noto-serif-tamil), Georgia, serif;
     font-weight: 600;
     letter-spacing: -0.01em;
     color: #1e1a17;
@@ -109,4 +110,31 @@
   &::after {
     background: linear-gradient(to left, transparent, currentColor);
   }
+}
+
+/*
+ * Tamil typography. Letter-spacing splits Tamil conjunct letters apart, and Tamil words are much
+ * wider than English, so Tamil pages drop tracking and caps and use calmer heading sizes.
+ * Unlayered rules, so they win over Tailwind's utility layer.
+ */
+/* Long Tamil words may wrap anywhere, so they never force cards wider than the screen. */
+html[lang="ta"] body {
+  overflow-wrap: anywhere;
+}
+html[lang="ta"] .eyebrow,
+html[lang="ta"] [class*="tracking-"] {
+  letter-spacing: normal;
+  text-transform: none;
+}
+html[lang="ta"] h1 {
+  font-size: clamp(1.75rem, 6vw, 3.25rem);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+html[lang="ta"] h2 {
+  font-size: clamp(1.35rem, 4.2vw, 2.1rem);
+  line-height: 1.35;
+}
+html[lang="ta"] h3 {
+  line-height: 1.4;
 }

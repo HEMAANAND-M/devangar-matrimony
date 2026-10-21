@@ -11,10 +11,12 @@ export function SignOutButton({
   everywhere = false,
   className,
   children,
+  pendingLabel = "Signing out…",
 }: {
   everywhere?: boolean;
   className?: string;
   children: React.ReactNode;
+  pendingLabel?: string;
 }) {
   const [pending, startTransition] = useTransition();
   return (
@@ -29,7 +31,7 @@ export function SignOutButton({
         })
       }
     >
-      {pending ? "Signing out…" : children}
+      {pending ? pendingLabel : children}
     </button>
   );
 }

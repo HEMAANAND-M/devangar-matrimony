@@ -34,7 +34,7 @@ To stop using free hours, stop the Codespace from <https://github.com/codespaces
 
 ## Features
 
-See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version, [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) for running the admin portal, and [SECURITY.md](SECURITY.md) for how members are protected.
 
 **Matchmaking**
 - Registration with mobile number + password and OTP verification; password reset by OTP

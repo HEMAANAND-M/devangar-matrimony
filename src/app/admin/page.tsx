@@ -8,6 +8,7 @@ import { dateTime } from "@/lib/format";
 import { rupees } from "@/lib/premium";
 import { requireStaff } from "@/lib/session";
 import { actionLabel } from "./activity/labels";
+import { SafetyPanel } from "./SafetyPanel";
 
 export const metadata = { title: "Dashboard" };
 
@@ -174,6 +175,8 @@ export default async function AdminOverview() {
           ))}
         </ul>
       </Panel>
+
+      <SafetyPanel />
 
       <div className={`grid gap-6 ${money ? "xl:grid-cols-3" : "lg:grid-cols-2"}`}>
         <Panel><DailyBars data={fillDays(signupSeries, DAYS)} label="New signups" /></Panel>
