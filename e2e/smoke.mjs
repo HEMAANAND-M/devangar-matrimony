@@ -1,7 +1,7 @@
 // End-to-end smoke test for Devangar Matrimony, driven through the installed Edge browser.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 
 // sharp is resolved from the app itself (the parent folder), so the suites need no copy of it.
 const require = createRequire(new URL("../package.json", import.meta.url));
@@ -32,7 +32,7 @@ async function waitOtp(phone10, previous = null) {
   throw new Error(`No OTP logged for ${phone10}`);
 }
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const cspViolations = [];
 async function newPage() {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });

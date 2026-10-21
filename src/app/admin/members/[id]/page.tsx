@@ -9,11 +9,12 @@ import { ActionButton } from "@/components/admin/ActionButton";
 import { AdminPageHeader, Badge, EmptyState, Panel, Table, Td, buttonCls, inputCls, label, statusTone, type Tone } from "@/components/admin/ui";
 import { DOSHAM_LABELS, MARITAL_STATUS_LABELS, MOTHER_TONGUES, PROFILE_FOR_LABELS, RASIS, STARS } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { ageFrom, dateOnly, dateTime, heightLabel, maskPhone, photoUrl } from "@/lib/format";
+import { ageFrom, dateOnly, dateTime, heightLabel, maskPhone } from "@/lib/format";
 import { getPlans } from "@/lib/plans";
 import { isPremium, rupees } from "@/lib/premium";
 import { requireStaff } from "@/lib/session";
 import { actionLabel } from "../../activity/labels";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 export const metadata = { title: "Member" };
 
@@ -212,9 +213,9 @@ function ProfileTab({ user, isAdmin }: { user: MemberUser; isAdmin: boolean }) {
         {p.photos.length ? (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
             {p.photos.map((ph) => (
-              <a key={ph.id} href={photoUrl(ph.id)} target="_blank" rel="noopener noreferrer" className="group relative overflow-hidden rounded-lg border border-hairline">
+              <a key={ph.id} href={signedPhotoUrl(ph.id)} target="_blank" rel="noopener noreferrer" className="group relative overflow-hidden rounded-lg border border-hairline">
                 {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-                <img src={photoUrl(ph.id, "thumb")} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover transition group-hover:scale-[1.02]" />
+                <img src={signedPhotoUrl(ph.id, "thumb")} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover transition group-hover:scale-[1.02]" />
                 <span className="absolute left-1.5 top-1.5 flex gap-1">
                   {ph.isPrimary && <Badge tone="maroon">Main</Badge>}
                   {!ph.approved && <Badge tone="amber">Pending</Badge>}

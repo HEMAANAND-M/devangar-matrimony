@@ -1,7 +1,7 @@
 // Real offline test: primes the service worker, waits for the server to stop, then navigates.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 const BASE = "http://localhost:3000";
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const ctx = await browser.newContext({ serviceWorkers: "allow" });
 const page = await ctx.newPage();
 await page.goto(`${BASE}/`);

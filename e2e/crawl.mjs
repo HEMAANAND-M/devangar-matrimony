@@ -1,7 +1,7 @@
 // Crawls every same-site link reachable as each role and reports non-2xx pages and browser errors.
 // Usage: node crawl.mjs <server-log> [maxPagesPerRole]
 import fs from "node:fs";
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 const BASE = "http://localhost:3000";
 const LOG = process.argv[2];
 const MAX = Number(process.argv[3] ?? 120);
@@ -29,7 +29,7 @@ async function signIn(page, phone, password) {
   await page.waitForLoadState("networkidle");
 }
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const roles = [
   ["visitor", null, null, "/"],
   ["member", "9000000104", "demo12345", "/dashboard"],

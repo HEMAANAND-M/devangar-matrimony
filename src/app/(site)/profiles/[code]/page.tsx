@@ -13,7 +13,7 @@ import { SelectField, TextArea } from "@/components/fields";
 import { isBlocked, isConnected, visiblePhotos } from "@/lib/access";
 import { DOSHAM_LABELS, MARITAL_STATUS_LABELS, PROFILE_FOR_LABELS, REPORT_CATEGORY_LABELS } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
+import { ageFrom, heightLabel } from "@/lib/format";
 import { canViewHoroscope, horoscopeInfo } from "@/lib/horoscope";
 import { type TKey, getT, getTx } from "@/lib/i18n";
 import { matchScore } from "@/lib/match";
@@ -22,6 +22,7 @@ import { isPremium } from "@/lib/premium";
 import { withPhotos } from "@/lib/queries";
 import { HOUR, rateLimit } from "@/lib/rate-limit";
 import { isStaff, requireProfile } from "@/lib/session";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 function Facts({ rows, empty = "Not added yet" }: { rows: [string, string | null | undefined][]; empty?: string }) {
   if (!rows.some(([, v]) => v)) return <p className="text-sm italic text-stone-400">{empty}</p>;
@@ -101,9 +102,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
               {photos.map((ph) =>
                 isSelf ? (
                   // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
-                  <img key={ph.id} src={photoUrl(ph.id)} alt={p.name} decoding="async" className="w-full object-cover" />
+                  <img key={ph.id} src={signedPhotoUrl(ph.id)} alt={p.name} decoding="async" className="w-full object-cover" />
                 ) : (
-                  <ProtectedPhoto key={ph.id} src={photoUrl(ph.id)} alt={p.name} />
+                  <ProtectedPhoto key={ph.id} src={signedPhotoUrl(ph.id)} alt={p.name} />
                 ),
               )}
             </div>

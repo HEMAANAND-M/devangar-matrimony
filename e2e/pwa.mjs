@@ -1,9 +1,9 @@
 // PWA: service worker registers, offline page works, and no personal page is ever cached.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const results = [];
 const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`); };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const ctx = await browser.newContext({ serviceWorkers: "allow" });
 const page = await ctx.newPage();
 const errors = [];

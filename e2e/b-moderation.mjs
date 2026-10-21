@@ -1,6 +1,6 @@
 // Agent B: end-to-end checks for moderation (approvals, photos, reports, verifications, selfie).
-import { chromium } from "playwright-core";
-import { execFileSync } from "node:child_process";
+import { launch } from "./browser.mjs";
+import { sql } from "./db.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -9,11 +9,6 @@ const BASE = process.argv[2] ?? "http://localhost:3102";
 // sharp is resolved from the app itself (the parent folder), so the suites need no copy of it.
 const require = createRequire(new URL("../package.json", import.meta.url));
 const sharp = require("sharp");
-const PSQL = fs.readdirSync("C:/Program Files/PostgreSQL").map((v) => `C:/Program Files/PostgreSQL/${v}/bin/psql.exe`).find((p) => fs.existsSync(p));
-const sql = (q) =>
-  execFileSync(PSQL, ["-U", "postgres", "-h", "localhost", "-d", "devangar_matrimony", "-At", "-c", q], { env: { ...process.env, PGPASSWORD: "devangar_local" } })
-    .toString()
-    .trim();
 
 const results = [];
 const check = (name, ok, detail = "") => {
@@ -32,7 +27,7 @@ await sharp(svg("#123", '<rect x="0" y="0" width="300" height="375" fill="#fe8"/
 
 // Server actions on a loaded dev machine can take a while; wait until the network is quiet.
 const settle = async (page) => { await page.waitForTimeout(800); await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(1500); };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 
 async function session(phone, password) {
   const ctx = await browser.newContext({ viewport: { width: 1360, height: 950 } });
@@ -122,6 +117,8 @@ try {
   sql(`update "Profile" set status='PENDING' where id='${p102}'`);
   await page.goto(`${BASE}/admin/approvals?id=${p102}`);
   await page.locator("#approve-profile").waitFor();
+  // The shortcut listener attaches after hydration; pressing before that would be lost.
+  await settle(page);
   await page.keyboard.press("a");
   await settle(page);
   check("A key approves the profile", sql(`select status from "Profile" where id='${p102}'`) === "APPROVED");

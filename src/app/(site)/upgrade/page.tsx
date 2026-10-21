@@ -10,13 +10,17 @@ import { PREMIUM_BENEFITS, isPremium, rupees } from "@/lib/premium";
 import { razorpayConfigured } from "@/lib/razorpay";
 import { requireProfile } from "@/lib/session";
 import { featureEnabled } from "@/lib/settings";
+import { ScrollToPlan } from "./ScrollToPlan";
 
 export const metadata = { title: "Premium membership" };
 
-export default async function UpgradePage({ searchParams }: { searchParams: Promise<{ coupon?: string }> }) {
+export default async function UpgradePage({ searchParams }: { searchParams: Promise<{ coupon?: string; plan?: string; renew?: string }> }) {
   const { profile } = await requireProfile();
   const premium = isPremium(profile);
-  const couponCode = normalizeCoupon((await searchParams).coupon ?? "");
+  const sp = await searchParams;
+  const couponCode = normalizeCoupon(sp.coupon ?? "");
+  // Renewal reminders link here with the member's plan, which is highlighted and scrolled into view.
+  const renewPlan = sp.renew === "1" && sp.plan ? sp.plan : null;
   const [plans, names, payments, paymentsOn] = await Promise.all([
     getPlans(),
     planNames(),
@@ -81,6 +85,7 @@ export default async function UpgradePage({ searchParams }: { searchParams: Prom
             )}
           </form>
 
+          {renewPlan && plans.some((p) => p.id === renewPlan) && <ScrollToPlan id={`plan-${renewPlan}`} />}
           <div className={`grid gap-6 ${plans.length >= 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
             {priced.map(({ plan, coupon }) => {
               const featured = !!plan.featured;
@@ -89,7 +94,8 @@ export default async function UpgradePage({ searchParams }: { searchParams: Prom
               return (
                 <section
                   key={plan.id}
-                  className={`relative flex flex-col rounded-3xl border p-8 text-center shadow-soft ${
+                  id={`plan-${plan.id}`}
+                  className={`relative flex flex-col rounded-3xl border p-8 text-center shadow-soft ${renewPlan === plan.id ? "ring-4 ring-gold ring-offset-4 ring-offset-cream " : ""}${
                     featured ? "border-gold bg-gradient-to-b from-maroon to-maroon-dark text-white shadow-lift md:-translate-y-3" : "border-hairline bg-white"
                   }`}
                 >

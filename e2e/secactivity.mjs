@@ -1,12 +1,11 @@
 // Security activity in Settings: new-device sign-in and "sign out everywhere" are listed.
-import { execFileSync } from "node:child_process";
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
+import { sql } from "./db.mjs";
 const BASE = process.argv[2] ?? "http://localhost:3000";
-const sql = (q) => execFileSync("C:/Program Files/PostgreSQL/17/bin/psql.exe", ["-d", "postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony", "-tAc", q]).toString().trim();
 const results = [];
 const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`); };
 const phone = "+919000000102";
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 async function login() {
   const page = await (await browser.newContext()).newPage();
   await page.goto(`${BASE}/login`);

@@ -26,3 +26,4 @@ UPDATE "Profile" SET "idVerifiedAt" = NULL WHERE code IN ('DM90001','DM90003','D
 UPDATE "Profile" SET status = 'APPROVED', "rejectionReason" = NULL WHERE code LIKE 'DM9000%';
 UPDATE "User" SET status = 'ACTIVE', "statusReason" = NULL, "suspendedUntil" = NULL, email = NULL, "emailOptIn" = false WHERE phone LIKE '+9190000001%';
 DELETE FROM "SecurityEvent";
+DELETE FROM "Advertisement"; DELETE FROM "Campaign";

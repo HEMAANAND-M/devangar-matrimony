@@ -1,6 +1,6 @@
 // Agent C end-to-end: coupons, demo checkout with coupon, invoice, refund, CSV, announcements,
 // support tickets, content pages, events and settings.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3103";
 const results = [];
@@ -8,7 +8,7 @@ const check = (name, ok, detail = "") => {
   results.push({ name, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`);
 };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 } });
 const page = await ctx.newPage();
 page.setDefaultTimeout(180000);

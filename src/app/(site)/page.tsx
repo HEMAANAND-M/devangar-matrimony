@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { AdCarousel } from "@/components/AdCarousel";
 import { DotPattern, Mandala, SectionTitle } from "@/components/Ornaments";
+import { adImageUrl, getLiveAds, recordImpressions } from "@/lib/ads";
 import { getTestimonials } from "@/lib/content";
+import { clientIp } from "@/lib/rate-limit";
 import { type TKey, getT } from "@/lib/i18n";
 import { getCurrentUser } from "@/lib/session";
 
@@ -53,7 +57,11 @@ const SEARCH_BY: TKey[] = ["home.by1", "home.by2", "home.by3", "home.by4", "home
 export default async function Home({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   if (await getCurrentUser()) redirect("/dashboard");
   const { deleted } = await searchParams;
-  const [testimonials, t] = await Promise.all([getTestimonials(), getT()]);
+  const [testimonials, t, ads] = await Promise.all([getTestimonials(), getT(), getLiveAds()]);
+  if (ads.length) {
+    const ip = await clientIp();
+    after(() => recordImpressions(ads.map((a) => a.id), ip));
+  }
   return (
     <div className="-mt-10">
       {deleted && (
@@ -165,6 +173,34 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
           </div>
         </div>
       </section>
+
+      {/* Sponsored wedding services, managed in Admin → Advertisements; absent when none are live */}
+      {ads.length > 0 && (
+        <section className="py-20" aria-label={t("home.adsTitle")}>
+          <SectionTitle eyebrow={t("home.adsEyebrow")} title={t("home.adsTitle")} subtitle={t("home.adsSubtitle")} />
+          <div className="mx-auto mt-12 max-w-5xl">
+            <AdCarousel
+              slides={ads.map((a) => ({
+                id: a.id,
+                image: adImageUrl(a),
+                title: a.title,
+                advertiser: a.advertiser,
+                category: t(`ads.cat.${a.category}` as TKey),
+                tagline: a.tagline,
+                linked: !!a.href,
+              }))}
+              labels={{
+                sponsored: t("ads.sponsored"),
+                previous: t("ads.previous"),
+                next: t("ads.next"),
+                goTo: t("ads.goTo"),
+                region: t("ads.region"),
+                visit: t("ads.visit"),
+              }}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Privacy */}
       <section id="privacy" className="grid scroll-mt-24 items-center gap-14 py-24 lg:grid-cols-2">

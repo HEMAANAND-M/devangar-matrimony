@@ -124,6 +124,16 @@ For real SMS set `SMS_PROVIDER`:
 
 Production refuses to send codes until a provider is configured. If an SMS fails, members see a friendly error and can retry straight away.
 
+### OTP by WhatsApp
+
+Codes can be sent by WhatsApp instead of SMS, which is usually cheaper in India and needs no DLT registration:
+
+1. In Meta Business Manager, create a message template named `otp_code` (or set `WHATSAPP_OTP_TEMPLATE`) in the **Authentication** category, with the "Copy code" button. Meta writes the body text; its single variable `{{1}}` is the code.
+2. Set `WHATSAPP_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` (the same as for notifications), and `OTP_CHANNEL=whatsapp`.
+3. Keep `SMS_PROVIDER` set as a fallback: if WhatsApp fails (for example, the number has no WhatsApp), the code goes by SMS. Use `SMS_PROVIDER=whatsapp` instead for WhatsApp only.
+
+Codes are sent directly, never through the notification outbox, and are not written to the logs in production.
+
 ### Staff sign-in
 
 Admins and moderators sign in with their password **and** an SMS code (`/login/staff`), and are signed out after 30 minutes without activity. For a local demo you can skip the code with `STAFF_2FA=off`; never set that on a public deployment.
@@ -168,6 +178,8 @@ Both need `Authorization: Bearer $CRON_SECRET`; Vercel Cron sends it automatical
 Photos are stored in the database by default, which is fine for a few thousand members. To move them to [Vercel Blob](https://vercel.com/docs/storage/vercel-blob), create a Blob store in the Vercel project. That sets `BLOB_READ_WRITE_TOKEN`, and new uploads go to Blob. Older photos keep being served from the database.
 
 Every photo is still served through `/api/photos/[id]` with the same access checks. The blob path is derived from the photo id with a server secret, so it can't be guessed. Keep `PHOTO_STORAGE_KEY` (or `SESSION_SECRET`, if that key isn't set) stable, or existing blob photos can no longer be found.
+
+**CDN.** Pages give members who pass the access checks signed photo links (`/api/photos/<id>?exp=…&sig=…`) that expire within 6–12 hours. These responses are `public` and `immutable` until expiry, so they can be cached at the edge, which makes photos fast for members abroad. On Vercel the edge network caches them automatically. With Cloudflare in front, add a cache rule for `/api/photos/*` that respects the origin's cache headers. Forged or expired links get 403. Rotating `PHOTO_URL_KEY` only means pages issue new links.
 
 ### Backups
 

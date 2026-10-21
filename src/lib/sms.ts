@@ -1,7 +1,9 @@
 import "server-only";
 
 /**
- * Sends one-time codes by SMS. The provider is chosen with SMS_PROVIDER:
+ * Sends one-time codes by WhatsApp and/or SMS. WhatsApp is used when OTP_CHANNEL=whatsapp (with the
+ * SMS provider below as fallback) or SMS_PROVIDER=whatsapp (WhatsApp only).
+ * The SMS provider is chosen with SMS_PROVIDER:
  *   msg91        MSG91 Flow API (MSG91_AUTH_KEY, MSG91_TEMPLATE_ID; the template's variable is "otp")
  *   twilio       Twilio Messages API (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM)
  *   console      prints the code to the server log; refused in production unless ALLOW_CONSOLE_SMS=true
@@ -45,6 +47,62 @@ async function twilio(phone: string, code: string) {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new SmsError(`Twilio ${res.status}: ${(await res.text()).slice(0, 200)}`);
+}
+
+/**
+ * WhatsApp Cloud API "authentication" template (Meta's OTP category, with a copy-code button). It is
+ * created in Meta Business Manager with one body variable {{1}} = the code and a "Copy code" button;
+ * both parameters are the code.
+ */
+async function whatsappOtp(phone: string, code: string) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneId) throw new SmsError("WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID must be set");
+  const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: phone.replace(/^\+/, ""),
+      type: "template",
+      template: {
+        name: process.env.WHATSAPP_OTP_TEMPLATE || "otp_code",
+        language: { code: process.env.WHATSAPP_OTP_LANG || process.env.WHATSAPP_TEMPLATE_LANG || "en" },
+        components: [
+          { type: "body", parameters: [{ type: "text", text: code }] },
+          { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: code }] },
+        ],
+      },
+    }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new SmsError(`WhatsApp ${res.status}: ${(await res.text()).slice(0, 200)}`);
+}
+
+const wantsWhatsApp = () => process.env.OTP_CHANNEL === "whatsapp" || process.env.SMS_PROVIDER === "whatsapp";
+// Locally an unset SMS_PROVIDER means the console provider, so that counts as a fallback too.
+const hasSmsProvider = () =>
+  process.env.SMS_PROVIDER ? process.env.SMS_PROVIDER !== "whatsapp" : process.env.NODE_ENV !== "production";
+
+/**
+ * Delivers a one-time code: WhatsApp first when enabled, with the SMS provider (when one is set) as
+ * fallback. Codes go out directly, never through the notification outbox, and are never logged
+ * except by the console providers used locally.
+ */
+export async function sendOtpCode(phone: string, code: string): Promise<"whatsapp" | "sms"> {
+  if (wantsWhatsApp()) {
+    try {
+      await whatsappOtp(phone, code);
+      console.log("[otp] sent via whatsapp");
+      return "whatsapp";
+    } catch (e) {
+      if (!hasSmsProvider()) throw e;
+      console.error("[otp] WhatsApp failed, falling back to SMS:", e instanceof Error ? e.message : e);
+    }
+  }
+  await sendOtpSms(phone, code);
+  if (wantsWhatsApp()) console.log("[otp] sent via sms (fallback)");
+  return "sms";
 }
 
 export async function sendOtpSms(phone: string, code: string): Promise<void> {

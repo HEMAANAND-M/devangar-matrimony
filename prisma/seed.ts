@@ -4,6 +4,7 @@
  */
 import { PrismaClient, type Gender } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import sharp from "sharp";
 
 const db = new PrismaClient();
 
@@ -191,7 +192,21 @@ async function showcase(passwordHash: string) {
       data: { title: "Welcome to the demo", body: "This is a demonstration site. All profiles are fictional.", audience: "all" },
     });
   }
-  console.log("Showcase data: 40 demo members (+919000000200 … 239 / demo12345), interests, payments, story, event");
+  if (!(await db.advertisement.count())) {
+    const samples = [
+      { advertiser: "Sample Studio", category: "PHOTOGRAPHER", title: "Candid wedding photography", tagline: "Sample advertisement — admins replace these in Admin → Advertisements", colors: ["#5e1229", "#8a6a3b"] },
+      { advertiser: "Sample Mahal", category: "VENUE", title: "Wedding halls in Coimbatore and Erode", tagline: "Sample advertisement", colors: ["#3f0b1b", "#5e1229"] },
+      { advertiser: "Sample Planners", category: "WEDDING_PLANNER", title: "Complete wedding planning", tagline: "Sample advertisement", colors: ["#8a6a3b", "#3f0b1b"] },
+    ] as const;
+    for (const [i, s] of samples.entries()) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="${s.colors[0]}"/><stop offset="1" stop-color="${s.colors[1]}"/></linearGradient></defs><rect width="1600" height="600" fill="url(#g)"/><text x="120" y="300" font-family="Georgia, serif" font-size="64" fill="#f3ece0">${s.title}</text><text x="120" y="390" font-family="Arial, sans-serif" font-size="34" fill="#e9dcc3">${s.advertiser} · sample banner</text></svg>`;
+      const image = await sharp(Buffer.from(svg)).webp({ quality: 82 }).toBuffer();
+      await db.advertisement.create({
+        data: { advertiser: s.advertiser, category: s.category, title: s.title, tagline: s.tagline, href: "https://example.com", image: new Uint8Array(image), sortOrder: i },
+      });
+    }
+  }
+  console.log("Showcase data: 40 demo members (+919000000200 … 239 / demo12345), interests, payments, story, event, sample ads");
 }
 
 main().finally(() => db.$disconnect());

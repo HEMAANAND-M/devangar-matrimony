@@ -6,10 +6,10 @@ import { cardPhoto } from "@/components/ProfileCard";
 import { TextArea } from "@/components/fields";
 import { CHAT_BLOCK_TEXT, MESSAGE_MAX, loadConversation, markRead, toChatMessage } from "@/lib/chat";
 import { db } from "@/lib/db";
-import { photoUrl } from "@/lib/format";
 import { getT, getTx } from "@/lib/i18n";
 import { requireProfile } from "@/lib/session";
 import { ChatThread } from "./ChatThread";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 export const metadata = { title: "Conversation" };
 
@@ -37,7 +37,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           <span className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-sand to-gold-light/60">
             {photo ? (
               // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
-              <img src={photoUrl(photo.id, "thumb")} alt="" className="h-full w-full object-cover" draggable={false} />
+              <img src={signedPhotoUrl(photo.id, "thumb")} alt="" className="h-full w-full object-cover" draggable={false} />
             ) : (
               <span className="flex h-full w-full items-center justify-center font-display text-lg text-gold-dark">{other.name.charAt(0)}</span>
             )}

@@ -1,9 +1,9 @@
 // Admin "Emergency: sign out everyone": members are signed out, the acting admin is not.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const results = [];
 const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`); };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 async function login(phone, password, landing) {
   const page = await (await browser.newContext()).newPage();
   page.on("dialog", (d) => d.accept());

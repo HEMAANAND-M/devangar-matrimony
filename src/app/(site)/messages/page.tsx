@@ -2,12 +2,12 @@ import Link from "next/link";
 import { PageHeader } from "@/components/Card";
 import { cardPhoto } from "@/components/ProfileCard";
 import { db } from "@/lib/db";
-import { photoUrl } from "@/lib/format";
 import { getT } from "@/lib/i18n";
 import { isPremium } from "@/lib/premium";
 import { withPhotos } from "@/lib/queries";
 import { requireProfile } from "@/lib/session";
 import { featureEnabled } from "@/lib/settings";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 export const metadata = { title: "Messages" };
 
@@ -80,7 +80,7 @@ export default async function MessagesPage() {
                   <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-sand to-gold-light/60">
                     {photo ? (
                       // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
-                      <img src={photoUrl(photo.id, "thumb")} alt="" className="h-full w-full object-cover" draggable={false} />
+                      <img src={signedPhotoUrl(photo.id, "thumb")} alt="" className="h-full w-full object-cover" draggable={false} />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center font-display text-xl text-gold-dark">{c.other.name.charAt(0)}</span>
                     )}

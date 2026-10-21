@@ -3,7 +3,7 @@ import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
 import { rateLimit } from "./rate-limit";
-import { sendOtpSms } from "./sms";
+import { sendOtpCode } from "./sms";
 
 const TTL_MS = 10 * 60 * 1000;
 export const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -29,7 +29,7 @@ export async function issueOtp(userId: string, phone: string, purpose: OtpPurpos
     data: { userId, purpose, codeHash: await bcrypt.hash(code, 8), expiresAt: new Date(Date.now() + TTL_MS) },
   });
   try {
-    await sendOtpSms(phone, code);
+    await sendOtpCode(phone, code);
   } catch (e) {
     console.error("[sms] OTP delivery failed:", e instanceof Error ? e.message : e);
     // Remove the undelivered code so the cooldown does not block an immediate retry.

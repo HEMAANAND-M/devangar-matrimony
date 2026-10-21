@@ -1,13 +1,12 @@
 // "This wasn't me": a new-device alert link signs out every device and locks the password.
-import { execFileSync } from "node:child_process";
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
+import { sql } from "./db.mjs";
 const BASE = process.argv[2] ?? "http://localhost:3000";
-const sql = (q) => execFileSync("C:/Program Files/PostgreSQL/17/bin/psql.exe", ["-d", "postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony", "-tAc", q]).toString().trim();
 const results = [];
 const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`); };
 const phone = "+919000000105";
 const originalHash = sql(`SELECT "passwordHash" FROM "User" WHERE phone='${phone}'`);
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 async function login(ctx) {
   const page = await ctx.newPage();
   await page.goto(`${BASE}/login`);

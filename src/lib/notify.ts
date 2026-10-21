@@ -27,10 +27,14 @@ export const TEMPLATES = {
   ticket_reply: ["name", "subject", "link"],
   account_suspended: ["name", "reason"],
   new_sign_in: ["device", "time", "link"],
+  premium_expiring: ["name", "until", "link"],
+  premium_expired: ["name", "link"],
+  /** Free-text admin campaigns. */
+  announcement: ["name", "message", "link"],
 } as const;
 export type Template = keyof typeof TEMPLATES;
 
-type Copy = { subject: string; heading: string; lines: string[]; cta?: string };
+export type Copy = { subject: string; heading: string; lines: string[]; cta?: string };
 
 /** Email wording for each template; `p` holds the template's named parameters. */
 const EMAIL_COPY: { [K in Template]: (p: Record<string, string>) => Copy } = {
@@ -50,7 +54,15 @@ const EMAIL_COPY: { [K in Template]: (p: Record<string, string>) => Copy } = {
   ticket_reply: (p) => ({ subject: `Re: ${p.subject}`, heading: "Our team replied", lines: [`${p.name}, we've replied to your request “${p.subject}”.`], cta: "Read reply" }),
   new_sign_in: (p) => ({ subject: "New sign-in to your account", heading: "Was this you?", lines: [`Your account was signed in to from ${p.device} on ${p.time}.`, "If this was you, there is nothing to do.", "If it wasn't, tap the button below: we will sign out every device and lock your password straight away."], cta: "This wasn't me" }),
   account_suspended: (p) => ({ subject: "Your account has been suspended", heading: "Account suspended", lines: [`${p.name}, your account has been suspended.`, `Reason: ${p.reason}`, "If you think this is a mistake, reply to this email or contact support."] }),
+  premium_expiring: (p) => ({ subject: `Your Premium membership ends on ${p.until}`, heading: "Keep your Premium benefits", lines: [`${p.name}, your Premium membership ends on ${p.until}.`, "Renew now to keep chatting with your matches, requesting numbers and seeing who viewed you."], cta: "Renew Premium" }),
+  premium_expired: (p) => ({ subject: "Your Premium membership has ended", heading: "Premium has ended", lines: [`${p.name}, your Premium membership ended yesterday.`, "Your profile and matches are safe. Renew any time to pick up where you left off."], cta: "Renew Premium" }),
+  announcement: (p) => ({ subject: "A message from Devangar Matrimony", heading: `Hello ${p.name}`, lines: [p.message], cta: p.link ? "Open" : undefined }),
 };
+
+/** Email wording for a template, for admin previews. */
+export function emailCopy(template: Template, params: Record<string, string>, locale: "en" | "ta" = "en"): Copy {
+  return (locale === "ta" ? EMAIL_COPY_TA : EMAIL_COPY)[template](params);
+}
 
 export const whatsappConfigured = () => !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_NUMBER_ID;
 

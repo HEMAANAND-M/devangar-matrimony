@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { Photo, Profile } from "@prisma/client";
-import { ageFrom, heightLabel, photoUrl } from "@/lib/format";
+import { ageFrom, heightLabel } from "@/lib/format";
 import { getT, getTx } from "@/lib/i18n";
 import { type MatchProfile, matchScore } from "@/lib/match";
 import { isPremium } from "@/lib/premium";
 import { ActiveIndicator, IdVerifiedBadge, MatchBadge, PhotoVerifiedBadge, PremiumBadge } from "./Badges";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 export type CardProfile = Profile & { photos: Photo[]; user?: { lastActiveAt: Date | null } };
 
@@ -32,7 +33,7 @@ export async function ProfileCard({ profile, photo, viewer }: { profile: CardPro
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route
           <img
-            src={photoUrl(photo.id, "thumb")}
+            src={signedPhotoUrl(photo.id, "thumb")}
             loading="lazy"
             decoding="async"
             draggable={false}

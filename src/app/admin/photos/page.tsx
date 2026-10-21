@@ -5,8 +5,8 @@ import { PHOTO_REJECT_REASONS, waited } from "@/app/admin/approvals/_components/
 import { AdminPageHeader, Badge, EmptyState, Panel, statusTone, label } from "@/components/admin/ui";
 import { db } from "@/lib/db";
 import { ensurePhotoHashes, findDuplicatePhotos } from "@/lib/flags";
-import { photoUrl } from "@/lib/format";
 import { requireStaff } from "@/lib/session";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 export const metadata = { title: "Photo review" };
 
@@ -65,9 +65,9 @@ export default async function PhotosPage() {
               return (
                 <article key={ph.id} className={`overflow-hidden rounded-xl border bg-white ${dupe ? "border-red-300 ring-2 ring-red-100" : "border-hairline"}`}>
                   <div className="relative">
-                    <a href={photoUrl(ph.id)} target="_blank" rel="noopener noreferrer" title="Open full size">
+                    <a href={signedPhotoUrl(ph.id)} target="_blank" rel="noopener noreferrer" title="Open full size">
                       {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-                      <img src={photoUrl(ph.id)} alt={`Photo uploaded by ${ph.profile.code}`} loading="lazy" decoding="async" className="aspect-[4/5] w-full bg-sand object-cover" />
+                      <img src={signedPhotoUrl(ph.id)} alt={`Photo uploaded by ${ph.profile.code}`} loading="lazy" decoding="async" className="aspect-[4/5] w-full bg-sand object-cover" />
                     </a>
                     <label className="absolute left-2 top-2 flex items-center gap-1.5 rounded-md bg-white/90 px-2 py-1 text-xs shadow">
                       <input type="checkbox" name="ids" value={ph.id} className="h-4 w-4 accent-maroon" /> Select
@@ -85,7 +85,7 @@ export default async function PhotosPage() {
                     {dupe && (
                       <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-xs text-red-800">
                         {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-                        <img src={photoUrl(dupe.photoId, "thumb")} alt="" className="h-12 w-10 shrink-0 rounded object-cover" />
+                        <img src={signedPhotoUrl(dupe.photoId, "thumb")} alt="" className="h-12 w-10 shrink-0 rounded object-cover" />
                         <span>
                           Looks like a photo on <Link href={`/profiles/${dupe.profileCode}`} target="_blank" className="font-medium underline">{dupe.profileName} ({dupe.profileCode})</Link>
                           {dupe.distance === 0 ? " — identical." : " — very similar."}

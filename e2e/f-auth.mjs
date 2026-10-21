@@ -1,15 +1,12 @@
 // Agent F checks: referral capture, verify-page UX, start over, sign-in history, health and cron
 // endpoints, suspension / ban, staff SMS second step and staff idle timeout.
 // Uses throwaway numbers +9198765000xx only, so it never disturbs the shared seed accounts.
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
+import { sql } from "./db.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3106";
 const LOG = process.argv[3];
-const PSQL = "C:/Program Files/PostgreSQL/17/bin/psql.exe";
-const DB = "postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony";
-const sql = (q) => execFileSync(PSQL, ["-d", DB, "-tAc", q]).toString().trim();
 
 const results = [];
 const check = (name, ok, detail = "") => {
@@ -31,7 +28,7 @@ async function otpFor(phone, sinceLen) {
   throw new Error(`no OTP for ${phone}`);
 }
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 900 } });
 const page = await ctx.newPage();
 page.setDefaultNavigationTimeout(180000);

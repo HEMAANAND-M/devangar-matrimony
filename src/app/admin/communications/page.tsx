@@ -34,6 +34,7 @@ export default async function CommunicationsPage({ searchParams }: { searchParam
       <AdminPageHeader
         title="Communications"
         description={whatsappConfigured() ? "WhatsApp Cloud API is connected." : "WhatsApp is not connected — messages are recorded but not sent until WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are set."}
+        actions={<Link href="/admin/campaigns" className={buttonCls.secondary}>Bulk campaigns</Link>}
       />
       <nav className="flex gap-1 border-b border-hairline" aria-label="Sections">
         {tabs.map(([key, text]) => (

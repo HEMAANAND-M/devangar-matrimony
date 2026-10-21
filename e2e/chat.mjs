@@ -1,5 +1,5 @@
 ﻿// Agent E checks: chat, contact requests, email prefs, referrals. Needs chat-setup.ts "setup" first.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3105";
 const results = [];
@@ -7,7 +7,7 @@ const check = (name, ok, detail = "") => {
   results.push({ name, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  â€” ${detail}` : ""}`);
 };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 
 async function session(phone) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 860 } });

@@ -4,8 +4,9 @@ import { ApproveButton, RejectForm } from "@/app/admin/approvals/_components/mod
 import { ID_REJECT_REASONS, SELFIE_REJECT_REASONS, Tabs, waited } from "@/app/admin/approvals/_components/shared";
 import { AdminPageHeader, Badge, EmptyState, Panel, Table, Td, label, statusTone } from "@/components/admin/ui";
 import { db } from "@/lib/db";
-import { dateTime, maskPhone, photoUrl } from "@/lib/format";
+import { dateTime, maskPhone } from "@/lib/format";
 import { requireStaff } from "@/lib/session";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 export const metadata = { title: "Verifications" };
 
@@ -90,7 +91,7 @@ export default async function VerificationsPage({ searchParams }: { searchParams
                         {v.profile.photos.map((ph) => (
                           <figure key={ph.id}>
                             {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-                            <img src={photoUrl(ph.id, "thumb")} alt="Profile photo" loading="lazy" className="h-52 w-40 rounded-lg border border-hairline object-cover" />
+                            <img src={signedPhotoUrl(ph.id, "thumb")} alt="Profile photo" loading="lazy" className="h-52 w-40 rounded-lg border border-hairline object-cover" />
                             <figcaption className="mt-1 text-center text-xs text-stone-500">Profile photo</figcaption>
                           </figure>
                         ))}

@@ -1,6 +1,6 @@
 // Agent D: profile edit fields, horoscope upload, profile page, search/saved searches, visitors,
 // interests, shortlist, cron and phone-width layout.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -19,7 +19,7 @@ fs.writeFileSync(png, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
 const fake = path.join(tmp, "fake.pdf");
 fs.writeFileSync(fake, "<html><script>alert(1)</script></html>");
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const _newContext = browser.newContext.bind(browser);
 browser.newContext = async (o) => { const c = await _newContext(o); c.setDefaultTimeout(180000); return c; };
 const settle = (page) => page.waitForLoadState("networkidle").catch(() => {});

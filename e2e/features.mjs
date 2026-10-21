@@ -1,26 +1,21 @@
 // E2E checks for premium, ID verification, watermark, protected photos, family accounts,
 // moderators and WhatsApp notifications. Usage: node features.mjs <server-log-file>
 import { createHmac } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
+import { sql } from "./db.mjs";
 
 // sharp is resolved from the app itself (the parent folder), so the suites need no copy of it.
 const require = createRequire(new URL("../package.json", import.meta.url));
 const sharp = require("sharp");
 const BASE = "http://localhost:3000";
 const LOG = process.argv[2];
-const PSQL = "C:/Program Files/PostgreSQL/17/bin/psql.exe";
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`);
 };
-const sql = (q) =>
-  execFileSync(PSQL, ["-U", "postgres", "-h", "localhost", "-d", "devangar_matrimony", "-tAc", q], { env: { ...process.env, PGPASSWORD: "devangar_local" } })
-    .toString()
-    .trim();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function latestOtp(phone10) {
   const re = new RegExp(`\\[OTP\\] \\+91${phone10}: (\\d{6})`, "g");
@@ -38,7 +33,7 @@ async function waitOtp(phone10) {
   throw new Error(`no OTP for ${phone10}`);
 }
 
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const pageErrors = [];
 async function newPage() {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });

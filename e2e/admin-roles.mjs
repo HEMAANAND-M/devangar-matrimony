@@ -1,5 +1,5 @@
 // Agent A checks: admin overview, members, member detail, staff, activity, exports.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 import { readFileSync } from "node:fs";
 const LOG = process.argv[3];
 const lastOtp = (phone) => [...readFileSync(LOG, "utf8").matchAll(new RegExp(`\\[OTP\\] \\+91${phone}: (\\d{6})`, "g"))].pop()?.[1];
@@ -11,7 +11,7 @@ const check = (name, ok, detail = "") => {
   results.push({ name, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`);
 };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const ctxOpts = { viewport: { width: 1440, height: 900 } };
 
 async function login(ctx, phone, password) {

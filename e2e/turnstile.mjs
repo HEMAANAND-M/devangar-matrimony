@@ -1,12 +1,12 @@
 // Turnstile checks. Run against a server using Cloudflare's test keys:
 //   pass mode: TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA  -> node turnstile.mjs pass
 //   fail mode: TURNSTILE_SECRET_KEY=2x0000000000000000000000000000000AA  -> node turnstile.mjs fail
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 const BASE = "http://localhost:3000";
 const mode = process.argv[2] ?? "pass";
 const results = [];
 const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`); };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const page = await (await browser.newContext()).newPage();
 const cspErrors = [];
 page.on("console", (m) => /Content Security Policy|Refused to/i.test(m.text()) && cspErrors.push(m.text().slice(0, 200)));

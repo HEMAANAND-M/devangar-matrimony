@@ -4,10 +4,11 @@ import { AdminPageHeader, Badge, EmptyState, Panel, Table, Td, buttonCls, status
 import { DOSHAM_LABELS, MARITAL_STATUS_LABELS, PROFILE_FOR_LABELS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { ensurePhotoHashes, refreshFlags } from "@/lib/flags";
-import { ageFrom, dateOnly, dateTime, heightLabel, maskPhone, photoUrl } from "@/lib/format";
+import { ageFrom, dateOnly, dateTime, heightLabel, maskPhone } from "@/lib/format";
 import { requireStaff } from "@/lib/session";
 import { ApproveButton, BulkAction, RejectForm, ReviewShortcuts, SelectAll } from "./_components/moderation";
 import { FlagBadges, FlagList, PHOTO_REJECT_REASONS, PROFILE_REJECT_REASONS, Tabs, waited } from "./_components/shared";
+import { signedPhotoUrl } from "@/lib/photo-url";
 
 export const metadata = { title: "Profile approvals" };
 
@@ -197,9 +198,9 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {p.photos.map((ph) => (
                   <div key={ph.id} className="overflow-hidden rounded-lg border border-hairline">
-                    <a href={photoUrl(ph.id)} target="_blank" rel="noopener noreferrer">
+                    <a href={signedPhotoUrl(ph.id)} target="_blank" rel="noopener noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element -- served by an authenticated route */}
-                      <img src={photoUrl(ph.id, "thumb")} alt={`Photo of ${p.code}`} loading="lazy" decoding="async" className="aspect-[4/5] w-full bg-sand object-cover" />
+                      <img src={signedPhotoUrl(ph.id, "thumb")} alt={`Photo of ${p.code}`} loading="lazy" decoding="async" className="aspect-[4/5] w-full bg-sand object-cover" />
                     </a>
                     <div className="space-y-2 p-2">
                       <div className="flex flex-wrap gap-1">

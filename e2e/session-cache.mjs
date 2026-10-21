@@ -1,7 +1,7 @@
 // Reproduces login/logout behaviour the way a person uses the site: clicking links (client-side
 // navigation with Next.js's router cache), the nav's Log out button, the browser Back button, and
 // switching accounts in the same browser.
-import { chromium } from "playwright-core";
+import { launch } from "./browser.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const results = [];
@@ -9,7 +9,7 @@ const check = (name, ok, detail = "") => {
   results.push({ name, ok });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`);
 };
-const browser = await chromium.launch({ channel: "msedge", headless: true });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const page = await ctx.newPage();
 const navText = () => page.locator("header nav").first().innerText();

@@ -1,0 +1,106 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: devangar_local
+          POSTGRES_DB: devangar_matrimony
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony
+      E2E_DATABASE_URL: postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony
+      SESSION_SECRET: e2e-only-session-secret-at-least-32-characters-long
+      SMS_PROVIDER: console-test
+      PAYMENTS_DEMO: "true"
+      CRON_SECRET: test_cron_secret
+      RAZORPAY_WEBHOOK_SECRET: test_webhook_secret
+      STAFF_2FA: "off"
+      PWNED_PASSWORD_CHECK: "off"
+      NEXT_TELEMETRY_DISABLED: "1"
+      PSQL: psql
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            e2e/package-lock.json
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - name: Seed demo data
+        run: npm run db:seed
+        env:
+          NODE_ENV: development
+      # The build downloads Google Fonts; retry once so a network blip does not fail the run.
+      - run: npm run build || npm run build
+
+      - name: Install browser
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright-core install --with-deps chromium
+
+      - name: Start server
+        run: |
+          nohup sh e2e/serve.sh > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && exit 0; sleep 2; done
+          echo "Server did not become healthy"; cat server.log; exit 1
+
+      - name: Run browser suites
+        working-directory: e2e
+        run: sh run-all.sh ../server.log
+
+      - name: Restart server with staff two-factor on
+        if: success() || failure()
+        run: |
+          pkill -f "next start" || true
+          sleep 2
+          STAFF_2FA=on nohup sh e2e/serve.sh > server-2fa.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && exit 0; sleep 2; done
+          echo "Server did not become healthy"; cat server-2fa.log; exit 1
+
+      - name: Run staff sign-in suite (f-auth)
+        if: success() || failure()
+        working-directory: e2e
+        run: sh run-all.sh ../server-2fa.log f-auth
+
+      - name: Upload logs and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            server.log
+            server-2fa.log
+            e2e/*.png
+          if-no-files-found: ignore
+          retention-days: 7

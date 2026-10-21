@@ -42,7 +42,10 @@ set). Please do not open a public GitHub issue for security problems.
 - Phone numbers are shown to another member only after the owner approves a request.
 - Photos:
   - Re-encoded to WebP with EXIF/GPS removed, decompression bombs rejected, and watermarked.
-  - Served only through an access-checked route (`private, no-cache`).
+  - Served only to members who pass the access checks. Pages hand those members signed photo links that
+    expire within 6–12 hours, so the CDN can cache them. A link keeps working until it expires even if
+    visibility changes in the meantime; deleting a photo stops it immediately. Unsigned requests are
+    still checked against the session (`private, no-cache`).
   - Blurred until tapped, with save disabled.
 - ID documents and selfies are encrypted with AES-256-GCM, viewable only by admins (selfies by
   staff), and deleted on review or after 30 days. Only the last 4 characters of an ID number are kept.
