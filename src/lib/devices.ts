@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { db } from "./db";
+import { link, notifyUser } from "./notify";
 import { clientIp } from "./rate-limit";
 import { isHttps } from "./session";
 
@@ -24,7 +25,16 @@ export async function recordLoginEvent(userId: string) {
       jar.set(DEVICE_COOKIE, deviceId, { httpOnly: true, sameSite: "lax", path: "/", secure: await isHttps(), maxAge: DEVICE_MAX_AGE });
     }
     const userAgent = ((await headers()).get("user-agent") ?? "").slice(0, 300);
+    const [hasHistory, knownDevice] = await Promise.all([
+      db.loginEvent.findFirst({ where: { userId }, select: { id: true } }),
+      db.loginEvent.findFirst({ where: { userId, deviceId }, select: { id: true } }),
+    ]);
     await db.loginEvent.create({ data: { userId, deviceId, ipHash: hashIp(await clientIp()), userAgent } });
+    // A sign-in from a browser this account has never used before is worth telling the member about.
+    if (hasHistory && !knownDevice) {
+      const time = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
+      await notifyUser(userId, "new_sign_in", { device: deviceLabel(userAgent), time, link: link("/settings") });
+    }
     await db.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
   } catch (e) {
     console.error("[login-event] failed:", e instanceof Error ? e.message : e);

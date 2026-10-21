@@ -2,7 +2,7 @@
 
 import { CHAT_BLOCK_TEXT, type ChatMessage, MESSAGE_MAX, contactShared, loadConversation, toChatMessage } from "@/lib/chat";
 import { db } from "@/lib/db";
-import { findContactInfo } from "@/lib/moderation";
+import { findContactInfo, looksLikeScam } from "@/lib/moderation";
 import { link, notifyProfile } from "@/lib/notify";
 import { MINUTE, rateLimit } from "@/lib/rate-limit";
 import { requireProfile } from "@/lib/session";
@@ -28,6 +28,10 @@ export async function sendMessage(interestId: string, raw: string): Promise<Send
   }
 
   const message = await db.message.create({ data: { interestId, senderId: profile.id, body } });
+  // Delivered as normal, but staff see a flag on the sender's record.
+  if (looksLikeScam(body) && !profile.flags.includes("scam_language")) {
+    await db.profile.update({ where: { id: profile.id }, data: { flags: { push: "scam_language" } } });
+  }
 
   // At most one alert per conversation every 30 minutes, so an active chat doesn't flood WhatsApp.
   if (await rateLimit(`notify:chat:${interestId}:${convo.other.id}`, 1, 30 * MINUTE)) {

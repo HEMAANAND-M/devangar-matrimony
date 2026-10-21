@@ -1,20 +1,12 @@
-import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { dobRangeForAges } from "@/lib/format";
 import { deliver, link } from "@/lib/notify";
 import { browsableWhere } from "@/lib/queries";
+import { cronAuthorized } from "@/lib/cron";
 
 export const maxDuration = 60;
 
 const DAY = 24 * 60 * 60 * 1000;
-
-function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const given = Buffer.from(request.headers.get("authorization") ?? "");
-  const expected = Buffer.from(`Bearer ${secret}`);
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
 
 /**
  * Weekly job (Vercel Cron sends `Authorization: Bearer $CRON_SECRET`):
@@ -22,7 +14,7 @@ function authorized(request: Request): boolean {
  *  2. Deletes ID documents nobody reviewed within 30 days (data minimisation).
  */
 export async function GET(request: Request) {
-  if (!authorized(request)) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(request)) return new Response("Unauthorized", { status: 401 });
   const now = Date.now();
   const weekAgo = new Date(now - 7 * DAY);
 

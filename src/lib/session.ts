@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
 import { db } from "./db";
+import { ipAllowed, parseAllowlist } from "./ip-allowlist";
+import { clientIp } from "./rate-limit";
 
 // Over HTTPS the cookie is __Host- prefixed: Secure, host-only and path=/, which blocks subdomain
 // cookie injection. Over plain HTTP (local `next start`, LAN testing) browsers reject Secure cookies,
@@ -160,6 +162,9 @@ export const getCurrentUser = cache(async () => {
   }
 
   const { managing, profile, ...rest } = user;
+  // Outside ADMIN_IP_ALLOWLIST a staff account keeps its member features but loses staff powers.
+  const allowlist = parseAllowlist(process.env.ADMIN_IP_ALLOWLIST);
+  if (staff && allowlist.length && !ipAllowed(await clientIp(), allowlist)) rest.role = "USER";
   return {
     ...rest,
     profile: profile ?? managing?.profile ?? null,

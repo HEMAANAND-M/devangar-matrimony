@@ -112,6 +112,11 @@ export function ChatThread({
                     {m.mine && <span aria-label={m.read ? "Read" : "Sent"}>{m.read ? "✓✓" : "✓"}</span>}
                   </span>
                 </div>
+                {m.warning && (
+                  <p role="note" className="mt-1 max-w-[85%] rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
+                    Safety tip: never send money, gifts or bank details to someone you have not met. Report anything suspicious.
+                  </p>
+                )}
               </div>
             </div>
           );

@@ -34,19 +34,32 @@ To stop using free hours, stop the Codespace from <https://github.com/codespaces
 
 ## Features
 
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
+
 **Matchmaking**
 - Registration with mobile number + password and OTP verification; password reset by OTP
-- Detailed profiles: gothram, kuladeivam, sub-sect, star, rasi, dosham, birth details, education, family, partner preferences
+- Detailed profiles: gothram, kuladeivam, sub-sect, star, rasi, lagnam, dosham, birth details, education, family, lifestyle and partner preferences (stars, cities, dosham, education, own-gothram rule)
+- **Horoscope (jathagam) upload** (PDF or image) with a South Indian rasi chart, visible to all members or only accepted matches
 - **Thirumana porutham** — 10-porutham star compatibility (Dinam, Ganam, Mahendram, Stree Deergham, Yoni, Rajju, Vedhai, Rasi, Rasi Adhipathi, Vasyam) on every profile
-- Search by age, height, star, rasi, dosham, mother tongue, marital status, city, education, gothram exclusion and profile ID
+- Search by age, height, sub-sect, stars, rasi, dosham, mother tongue, marital status, cities, education, gothram rule, photo, ID verified, recently active and profile ID; sort by **match score**
+- **Saved searches** with daily alerts; **visitors** page (who viewed / shortlisted you)
 - Recommended matches, **who viewed my profile**, and a profile-strength meter on the dashboard
-- Send / accept / decline / withdraw interests; contact number revealed only after acceptance
+- Send / accept / decline / withdraw interests
+- **Chat** after an interest is accepted (when either member is premium), with read receipts and in-chat report/block
+- **Phone numbers shared only with permission**: a member requests the number and it is shown after the other member approves
 - Shortlist, hide/unhide profile, report and **block** members
-- Admin panel: approve/reject profiles and photos, handle reports, moderation activity log
+- Success stories, FAQ, community events and a support inbox
 - Installable on phones (PWA), branded link previews for WhatsApp / social sharing
 
+**Admin portal**
+- Dashboard with 30-day charts, queue ages and the bride/groom balance by city
+- Member search and records with timeline, devices, notes and logged actions (suspend, ban, force sign-out, reset password, grant premium, mark married, export, erase)
+- Review queues for profiles (keyboard shortcuts), photos (duplicate detection), reports (categories, priority, notes) and ID / selfie verifications, with automatic risk flags
+- Payments with refunds and GST invoices, editable plans and coupons, announcements, notification log, content, events, dropdown lists and feature switches
+- Staff management and a complete activity log with CSV export
+
 **Membership & trust**
-- **Premium plans via Razorpay** (3 / 6 / 12 months): contact numbers of accepted matches, 30 interests a day (free: 5), gold Premium badge. Signature-verified checkout plus an idempotent webhook; no-charge demo checkout until keys are added
+- **Premium plans via Razorpay** (3 / 6 / 12 months, editable by admins, coupons supported): chat, phone-number requests, visitors, 30 interests a day (free: 5), gold Premium badge. Signature-verified checkout plus an idempotent webhook; no-charge demo checkout until keys are added
 - **ID verification**: Aadhaar (masked), PAN, Passport, Voter ID or Driving licence. Only the last 4 characters are stored; the document is AES-256-GCM encrypted, admin-only, and deleted on review (or after 30 days)
 - **Family accounts**: a parent or sibling manages the profile with their own login (invite bound to their OTP-verified number, up to 2)
 - **Moderator role**: staff can moderate profiles, photos and reports without access to payments, ID documents, phone numbers or staff management
@@ -54,6 +67,9 @@ To stop using free hours, stop the Codespace from <https://github.com/codespaces
 - **Photo protection**: watermark burned into every photo; profile photos blurred until tapped, re-blurred when the app loses focus, right-click/long-press save disabled
 
 **Security & privacy**
+- Staff sign in with an SMS code, are signed out after 30 idle minutes, and can be limited to office IPs (`ADMIN_IP_ALLOWLIST`)
+- Suspended and banned accounts are refused on every request; sign-in history with hashed IPs
+- Daily profile-view cap per account to stop bulk harvesting of profiles
 - Nonce-based Content Security Policy, HSTS, frame blocking and other security headers
 - Postgres-backed rate limiting on login, registration, OTP, password reset, reports and uploads (works across serverless instances)
 - Sessions in signed `HttpOnly` / `SameSite` cookies (`__Host-` prefixed in production), revocable via password change or "log out of all devices"

@@ -13,6 +13,7 @@ import {
   accountBlock, clearStaffPending, createSession, createStaffPending, destroySession, getCurrentUser, homePath, isStaff,
   readStaffPending, requireUser,
 } from "@/lib/session";
+import { BREACHED_PASSWORD, isBreachedPassword } from "@/lib/pwned";
 import { featureEnabled } from "@/lib/settings";
 import { deletePhotos } from "@/lib/storage";
 
@@ -44,6 +45,7 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   if (!phone) return { error: "Enter a valid 10-digit Indian mobile number." };
   const problem = passwordProblem(password, str(fd, "confirm"));
   if (problem) return { error: problem };
+  if (await isBreachedPassword(password)) return { error: BREACHED_PASSWORD };
   if (fd.get("terms") !== "on") return { error: "Please accept the terms to continue." };
 
   if (await db.user.findUnique({ where: { phone } })) {
@@ -196,6 +198,7 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
   if (!phone || !/^\d{6}$/.test(code)) return { error: "Enter your mobile number and the 6-digit code." };
   const problem = passwordProblem(password, str(fd, "confirm"));
   if (problem) return { error: problem };
+  if (await isBreachedPassword(password)) return { error: BREACHED_PASSWORD };
 
   const user = await db.user.findUnique({ where: { phone } });
   if (!user) return { error: "Incorrect or expired code." };
@@ -221,6 +224,7 @@ export async function changePassword(_: FormState, fd: FormData): Promise<FormSt
   const password = str(fd, "password");
   const problem = passwordProblem(password, str(fd, "confirm"));
   if (problem) return { error: problem };
+  if (await isBreachedPassword(password)) return { error: BREACHED_PASSWORD };
 
   const updated = await db.user.update({
     where: { id: user.id },

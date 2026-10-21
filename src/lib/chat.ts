@@ -5,6 +5,7 @@ import { db } from "./db";
 import { isPremium } from "./premium";
 import { withPhotos } from "./queries";
 import { featureEnabled } from "./settings";
+import { looksLikeScam } from "./moderation";
 
 export const MESSAGE_MAX = 1000;
 
@@ -65,7 +66,8 @@ export async function contactShared(a: string, b: string): Promise<boolean> {
   return !!hit;
 }
 
-export type ChatMessage = { id: string; body: string; mine: boolean; createdAt: string; read: boolean };
+/** `warning`: the other member's message reads like a common scam, so the thread shows a safety tip. */
+export type ChatMessage = { id: string; body: string; mine: boolean; createdAt: string; read: boolean; warning: boolean };
 
 export const toChatMessage = (m: { id: string; body: string; senderId: string; createdAt: Date; readAt: Date | null }, meId: string): ChatMessage => ({
   id: m.id,
@@ -73,6 +75,7 @@ export const toChatMessage = (m: { id: string; body: string; senderId: string; c
   mine: m.senderId === meId,
   createdAt: m.createdAt.toISOString(),
   read: !!m.readAt,
+  warning: m.senderId !== meId && looksLikeScam(m.body),
 });
 
 /** Marks the other member's messages in this conversation as read. */

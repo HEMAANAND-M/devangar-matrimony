@@ -1,24 +1,16 @@
-import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { link, notifyProfile } from "@/lib/notify";
 import { newMatchesWhere, normalizeSearch, searchQueryString } from "@/lib/queries";
+import { cronAuthorized } from "@/lib/cron";
 
 export const maxDuration = 60;
 
 // At most one alert per saved search per day, even if the job runs more often or is retried.
 const MIN_GAP_MS = 20 * 60 * 60 * 1000;
 
-function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const given = Buffer.from(request.headers.get("authorization") ?? "");
-  const expected = Buffer.from(`Bearer ${secret}`);
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
-
 /** Daily job: tells members when new profiles match a saved search with alerts on. */
 export async function GET(request: Request) {
-  if (!authorized(request)) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(request)) return new Response("Unauthorized", { status: 401 });
   const now = new Date();
   const searches = await db.savedSearch.findMany({
     where: {

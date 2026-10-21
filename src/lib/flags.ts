@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import { db } from "./db";
-import { findContactInfo } from "./moderation";
+import { findContactInfo, looksLikeScam } from "./moderation";
 import { getPhoto } from "./storage";
 
 export const FLAG_INFO: Record<string, { label: string; detail: string }> = {
@@ -10,6 +10,7 @@ export const FLAG_INFO: Record<string, { label: string; detail: string }> = {
   shared_device: { label: "Shared device", detail: "Signed in from a device that another account also uses." },
   interest_spike: { label: "Interest spike", detail: "Sent more than 25 interests in the last 24 hours." },
   new_account_many_reports: { label: "Many reports", detail: "Has 3 or more open reports from other members." },
+  scam_language: { label: "Scam language", detail: "Sent chat messages that mention money transfers, bank details, customs fees or investments." },
 };
 
 /** 64-bit average hash of an image as 16 hex characters (one per 4 pixels, row-major). */
@@ -117,6 +118,8 @@ export async function refreshFlags(profileId: string): Promise<string[]> {
     db.report.count({ where: { targetId: profileId, resolved: false } }),
   ]);
   if (sentToday > 25) flags.push("interest_spike");
+  const recentMessages = await db.message.findMany({ where: { senderId: profileId }, select: { body: true }, orderBy: { createdAt: "desc" }, take: 50 });
+  if (recentMessages.some((m) => looksLikeScam(m.body))) flags.push("scam_language");
   if (openReports >= 3) flags.push("new_account_many_reports");
 
   await db.profile.update({ where: { id: profileId }, data: { flags } });

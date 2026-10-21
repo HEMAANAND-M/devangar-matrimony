@@ -79,6 +79,8 @@ export async function submitSelfie(_: FormState, fd: FormData): Promise<FormStat
  * file is deleted immediately.
  */
 export async function reviewVerification(id: string, approve: boolean, rawReason = ""): Promise<FormState> {
+  // Role first, so callers without access learn nothing about which verifications exist.
+  const staffMember = await requireStaff();
   const reason = rawReason.trim().slice(0, 300);
   if (!approve && !reason) return { error: "Give a reason so the member can resubmit." };
   const v = await db.idVerification.findUnique({
@@ -87,7 +89,7 @@ export async function reviewVerification(id: string, approve: boolean, rawReason
   });
   if (!v) return { error: "Verification no longer exists." };
   const isSelfie = v.docType === "SELFIE";
-  const staff = isSelfie ? await requireStaff() : await requireAdmin();
+  const staff = isSelfie ? staffMember : await requireAdmin();
   if (v.status !== "PENDING") return { error: "Already reviewed." };
 
   const now = new Date();

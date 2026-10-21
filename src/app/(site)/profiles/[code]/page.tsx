@@ -19,6 +19,7 @@ import { matchScore } from "@/lib/match";
 import { porutham } from "@/lib/porutham";
 import { isPremium } from "@/lib/premium";
 import { withPhotos } from "@/lib/queries";
+import { HOUR, rateLimit } from "@/lib/rate-limit";
 import { isStaff, requireProfile } from "@/lib/session";
 
 function Facts({ rows }: { rows: [string, string | null | undefined][] }) {
@@ -40,6 +41,9 @@ export async function generateMetadata({ params }: { params: Promise<{ code: str
   return { title: `Profile ${(await params).code}` };
 }
 
+const FREE_DAILY_VIEWS = 150;
+const PREMIUM_DAILY_VIEWS = 400;
+
 export default async function ProfilePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const { user, profile: me } = await requireProfile();
@@ -49,6 +53,20 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
   const isSelf = p?.id === me.id;
   if (!p || (!isSelf && !isAdmin && (p.status !== "APPROVED" || p.gender === me.gender))) notFound();
   if (!isSelf && !isAdmin && (await isBlocked(me.id, p.id))) notFound();
+
+  // Caps how many profiles one account can open per day, so a fake account cannot harvest the
+  // community's profiles and photos in bulk. Genuine members rarely come close.
+  if (!isSelf && !isAdmin && !(await rateLimit(`profile-views:${me.id}`, isPremium(me) ? PREMIUM_DAILY_VIEWS : FREE_DAILY_VIEWS, 24 * HOUR))) {
+    return (
+      <Card className="mx-auto max-w-xl text-center">
+        <h1 className="text-3xl text-maroon">Daily profile limit reached</h1>
+        <p className="mt-3 text-sm text-stone-600">
+          To protect our members’ privacy, each account can open a limited number of profiles a day. Please come back
+          tomorrow — your shortlist and interests are still available.
+        </p>
+      </Card>
+    );
+  }
 
   if (!isSelf && !isAdmin) {
     // Recorded after the response is sent so it never slows the page.
