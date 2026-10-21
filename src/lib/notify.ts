@@ -4,6 +4,7 @@ import { db } from "./db";
 import { emailConfigured, renderEmail, sendEmail } from "./email";
 import { featureEnabled } from "./settings";
 import { SITE_URL } from "./site";
+import { EMAIL_COPY_TA } from "./notify-ta";
 
 /**
  * WhatsApp Cloud API templates. Each must be created and approved in Meta Business Manager with
@@ -53,7 +54,7 @@ const EMAIL_COPY: { [K in Template]: (p: Record<string, string>) => Copy } = {
 
 export const whatsappConfigured = () => !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-async function sendWhatsApp(phone: string, template: Template, params: string[]) {
+async function sendWhatsApp(phone: string, template: Template, params: string[], language?: string) {
   const res = await fetch(`https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
@@ -63,7 +64,7 @@ async function sendWhatsApp(phone: string, template: Template, params: string[])
       type: "template",
       template: {
         name: template,
-        language: { code: process.env.WHATSAPP_TEMPLATE_LANG ?? "en" },
+        language: { code: language ?? process.env.WHATSAPP_TEMPLATE_LANG ?? "en" },
         components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }],
       },
     }),
@@ -78,7 +79,7 @@ function namedParams(template: Template, ordered: string[]): Record<string, stri
 
 /** Delivers one recorded notification on its channel and stores the outcome. */
 export async function deliver(notificationId: string) {
-  const n = await db.notification.findUnique({ where: { id: notificationId }, include: { user: { select: { phone: true, email: true } } } });
+  const n = await db.notification.findUnique({ where: { id: notificationId }, include: { user: { select: { phone: true, email: true, locale: true } } } });
   if (!n || n.status !== "PENDING") return;
   const template = n.template as Template;
   const params = n.params as string[];
@@ -92,11 +93,13 @@ export async function deliver(notificationId: string) {
   try {
     if (n.channel === "EMAIL") {
       const p = namedParams(template, params);
-      const copy = EMAIL_COPY[template](p);
+      const copy = (n.user.locale === "ta" ? EMAIL_COPY_TA : EMAIL_COPY)[template](p);
       const { html, text } = renderEmail({ heading: copy.heading, lines: copy.lines, cta: copy.cta && p.link ? { label: copy.cta, href: p.link } : undefined });
       await sendEmail({ to: n.user.email!, subject: copy.subject, html, text });
     } else {
-      await sendWhatsApp(n.user.phone, template, params);
+      // Tamil WhatsApp templates must be approved in Meta separately; set WHATSAPP_TEMPLATE_LANG_TA once they are.
+      const lang = n.user.locale === "ta" && process.env.WHATSAPP_TEMPLATE_LANG_TA ? process.env.WHATSAPP_TEMPLATE_LANG_TA : undefined;
+      await sendWhatsApp(n.user.phone, template, params, lang);
     }
     await db.notification.update({ where: { id: n.id }, data: { status: "SENT", sentAt: new Date(), error: null } });
   } catch (e) {

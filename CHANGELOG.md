@@ -3,6 +3,15 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.7.0] — 2026-10-21
+
+### Added
+
+- **Tamil emails:** members who chose Tamil receive every notification email in Tamil.
+- **Tamil WhatsApp:** once Tamil versions of the WhatsApp templates are approved in Meta, set
+  WHATSAPP_TEMPLATE_LANG_TA (for example "ta") and Tamil-speaking members receive them.
+- **e2e/:** the browser test suites are now part of the repository, with a README.
+
 ## [1.6.0] — 2026-10-21
 
 ### Added
