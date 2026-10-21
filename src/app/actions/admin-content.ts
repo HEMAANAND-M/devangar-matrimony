@@ -176,3 +176,15 @@ export async function saveFeatures(_: FormState, fd: FormData): Promise<FormStat
   revalidatePath("/", "layout");
   return { message: "Feature switches saved." };
 }
+
+/**
+ * Incident response: invalidates every session except the admin's own (members and staff), e.g.
+ * after a suspected breach. Everyone signs in again; staff also pass the SMS step again.
+ */
+export async function signOutEveryone(_: FormState, fd: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  if (str(fd, "confirm") !== "SIGN OUT EVERYONE") return { error: "Type SIGN OUT EVERYONE to confirm." };
+  const { count } = await db.user.updateMany({ where: { id: { not: admin.id } }, data: { sessionVersion: { increment: 1 } } });
+  await log(admin.id, "security.sign_out_everyone", "all", `${count} accounts`);
+  return { message: `Signed out ${count.toLocaleString("en-IN")} accounts. Everyone must sign in again.` };
+}

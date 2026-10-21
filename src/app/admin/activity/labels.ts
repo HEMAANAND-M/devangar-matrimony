@@ -1,6 +1,7 @@
 /** Human wording for AdminLog actions. Unknown actions fall back to a tidied version of the key. */
 const LABELS: Record<string, string> = {
   "profile.approve": "Approved profile",
+  "security.sign_out_everyone": "Signed out every account",
   "profile.reject": "Rejected profile",
   "profile.status": "Changed profile status",
   "profile.edit": "Edited profile",

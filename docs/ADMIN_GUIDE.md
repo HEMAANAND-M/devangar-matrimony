@@ -66,6 +66,8 @@ The dashboard's Trust & safety panel counts automatic flags. Click one to see th
   name, for tax purposes.
 - **Something is being abused:** Settings, Feature switches turns off chat, phone requests,
   registrations or payments instantly for everyone.
+- **Suspected breach:** Settings, **Emergency: sign out everyone**, then follow
+  [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md). CERT-In must be told within 6 hours.
 - **Tell everyone something:** Communications, then a new announcement. You can target free or
   premium members, brides or grooms.
 

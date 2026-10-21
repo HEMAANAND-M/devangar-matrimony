@@ -119,7 +119,7 @@ Ordered by value for a matrimony site. Items marked **(config)** need no code.
     Settings.
 21. **Alerts to admins** for unusual activity: many failed logins, staff sign-in from a new country,
     bulk exports.
-22. **Write an incident-response runbook** covering how to revoke all sessions (bump every
+22. ~~Incident-response runbook~~: done in 1.4.0 ([docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)), along with an emergency "sign out everyone" button. The original note: covering how to revoke all sessions (bump every
     `sessionVersion`), rotate secrets, notify members and report to CERT-In within 6 hours, as
     Indian law requires.
 

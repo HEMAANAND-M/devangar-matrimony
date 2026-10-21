@@ -3,6 +3,16 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.4.0] — 2026-10-21
+
+### Added
+
+- **Emergency "Sign out everyone"** in Admin → Settings, for a suspected breach. Every account except
+  the admin's own is signed out. You must type a confirmation phrase, and the action is logged.
+- **[docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md):** what to do in the first 30 minutes,
+  how to rotate secrets, where to look, and the legal reporting deadlines (CERT-In within 6 hours,
+  DPDP Act).
+
 ## [1.3.0] — 2026-10-21
 
 ### Added

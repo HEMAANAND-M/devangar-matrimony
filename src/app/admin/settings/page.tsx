@@ -1,4 +1,4 @@
-import { saveFeatures, saveLists } from "@/app/actions/admin-content";
+import { saveFeatures, saveLists, signOutEveryone } from "@/app/actions/admin-content";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { AdminPageHeader, Badge, Panel, inputCls } from "@/components/admin/ui";
 import { getLists, type ListKey } from "@/lib/lists";
@@ -73,6 +73,16 @@ export default async function SettingsPage() {
             ))}
             <div className="pt-3"><SubmitButton className={SUBMIT}>Save switches</SubmitButton></div>
           </ActionForm>
+          <div className="mt-6 rounded-lg border border-red-200 bg-red-50/50 p-4">
+            <p className="text-sm font-semibold text-red-800">Emergency: sign out everyone</p>
+            <p className="mt-1 text-xs text-red-700/80">
+              For a suspected breach. Every member and staff account except yours is signed out and must sign in again. See docs/INCIDENT_RESPONSE.md.
+            </p>
+            <ActionForm action={signOutEveryone} confirm="Sign out every account except yours?" className="mt-3 flex flex-wrap items-start gap-2">
+              <input name="confirm" placeholder="Type SIGN OUT EVERYONE" aria-label="Type SIGN OUT EVERYONE to confirm" autoComplete="off" className={`${inputCls} w-56`} />
+              <SubmitButton variant="danger" className={SUBMIT}>Sign out everyone</SubmitButton>
+            </ActionForm>
+          </div>
         </Panel>
 
         <Panel title="Integrations" description="Configured through environment variables on the server.">
