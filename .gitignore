@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+/e2e/node_modules/
+/e2e/*.png
+/e2e/*.out
+/e2e/b-tmp/
+/e2e/shots/
 /.pnp
 .pnp.*
 .yarn/*
