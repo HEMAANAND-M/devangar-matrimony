@@ -59,16 +59,16 @@ export async function Nav() {
         </Link>
 
         {/* Desktop */}
-        <div className="hidden items-center gap-4 xl:gap-5 lg:flex">
+        <div data-nav="desktop" className="hidden items-center gap-4 xl:gap-5 lg:flex">
           <NavLinks links={links} unreadLabel={t("nav.unread", { count: "{count}" })} />
         </div>
-        <div className="hidden items-center gap-2 lg:flex">
+        <div data-nav="desktop" className="hidden items-center gap-2 lg:flex">
           <LanguageSwitch locale={locale} label={t("lang.label")} className="mr-1" />
           {user ? <>{upgrade}{logoutButton}</> : signedOut}
         </div>
 
         {/* Mobile */}
-        <details className="group relative lg:hidden">
+        <details data-nav="mobile" className="group relative lg:hidden">
           <summary className="flex cursor-pointer list-none items-center rounded-full border border-hairline p-2.5 text-maroon [&::-webkit-details-marker]:hidden" aria-label={t("nav.menu")}>
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
               <path d="M4 7h16M4 12h16M4 17h16" className="group-open:hidden" />

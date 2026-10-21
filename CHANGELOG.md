@@ -3,6 +3,15 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.1.1] — 2026-10-21
+
+### Fixed
+
+- **Tamil layout:**
+  - Words no longer break mid-word, and the desktop menu no longer overflows (the compact menu is
+    used below 1440px).
+  - Dashboard figures keep their Tamil labels on a separate line.
+
 ## [1.1.0] — 2026-10-21
 
 Tamil language, admin quality-of-life improvements, and fixes found in a full review of payments

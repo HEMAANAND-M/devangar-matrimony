@@ -117,9 +117,25 @@
  * wider than English, so Tamil pages drop tracking and caps and use calmer heading sizes.
  * Unlayered rules, so they win over Tailwind's utility layer.
  */
-/* Long Tamil words may wrap anywhere, so they never force cards wider than the screen. */
+/* Long Tamil words wrap rather than overflow; grid and flex children may shrink so they can. */
 html[lang="ta"] body {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+html[lang="ta"] .grid > * {
+  min-width: 0;
+}
+/* Tamil menu labels are long: keep each on one line and use the compact menu below 1440px. */
+html[lang="ta"] header nav a,
+html[lang="ta"] header nav button {
+  white-space: nowrap;
+}
+@media (min-width: 1024px) and (max-width: 1439px) {
+  html[lang="ta"] [data-nav="desktop"] {
+    display: none;
+  }
+  html[lang="ta"] [data-nav="mobile"] {
+    display: block;
+  }
 }
 html[lang="ta"] .eyebrow,
 html[lang="ta"] [class*="tracking-"] {
@@ -137,4 +153,18 @@ html[lang="ta"] h2 {
 }
 html[lang="ta"] h3 {
   line-height: 1.4;
+}
+
+/* Large display figures and labels (dashboard cards, prices) are set smaller for long Tamil words. */
+html[lang="ta"] :is(p, span, div).text-3xl,
+html[lang="ta"] :is(p, span, div).text-4xl {
+  font-size: 1.5rem;
+  line-height: 1.45;
+}
+/* "0 uploaded"-style figures: in Tamil the label sits under the number, in the body font. */
+html[lang="ta"] :is(.text-3xl, .text-4xl) > span.text-lg {
+  display: block;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
