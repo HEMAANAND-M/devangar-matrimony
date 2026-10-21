@@ -152,7 +152,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ code: 
             {p.name}
             {p.status === "APPROVED" && (
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-sans text-xs font-medium tracking-normal text-emerald-800">
-                ✓ Verified
+                ✓ Reviewed
               </span>
             )}
           </h1>

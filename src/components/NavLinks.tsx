@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function NavLinks({ links }: { links: [href: string, label: string][] }) {
+export function NavLinks({ links }: { links: [href: string, label: string, count?: number][] }) {
   const pathname = usePathname();
   return (
     <>
-      {links.map(([href, label]) => {
+      {links.map(([href, label, count]) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
@@ -19,6 +19,11 @@ export function NavLinks({ links }: { links: [href: string, label: string][] }) 
             }`}
           >
             {label}
+            {!!count && (
+              <span className="ml-1.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-maroon px-1 text-[0.65rem] font-semibold leading-[1.1rem] text-white" aria-label={`${count} unread`}>
+                {count > 9 ? "9+" : count}
+              </span>
+            )}
           </Link>
         );
       })}

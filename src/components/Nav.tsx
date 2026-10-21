@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unreadCount } from "@/lib/chat";
 import { isPremium } from "@/lib/premium";
 import { getCurrentUser, isStaff } from "@/lib/session";
 import { Logo } from "./Logo";
@@ -9,7 +10,8 @@ export async function Nav() {
   const user = await getCurrentUser();
   // Staff accounts without a member profile only work in the admin portal.
   const staffOnly = !!user && isStaff(user) && !user.profile;
-  const links: [string, string][] = staffOnly
+  const unread = user?.profile ? await unreadCount(user.profile.id) : 0;
+  const links: [string, string, number?][] = staffOnly
     ? [["/admin", user.role === "ADMIN" ? "Admin portal" : "Moderation portal"]]
     : user
     ? [
@@ -17,7 +19,7 @@ export async function Nav() {
         ["/search", "Search"],
         ["/interests", "Interests"],
         ["/shortlist", "Shortlist"],
-        ["/messages", "Messages"],
+        ["/messages", "Messages", unread],
         ["/profile/edit", "My profile"],
         ["/settings", "Settings"],
         ...(isStaff(user) ? ([["/admin", user.role === "ADMIN" ? "Admin" : "Moderation"]] as [string, string][]) : []),

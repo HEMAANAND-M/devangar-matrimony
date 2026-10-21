@@ -54,6 +54,12 @@ export function DailyBars({
           <span className="font-semibold text-ink">{format(total)}</span> in {data.length} days
         </span>
       </figcaption>
+      {total === 0 ? (
+        // An all-zero series would draw an empty grid with identical tick labels; say it plainly instead.
+        <div className="flex aspect-[360/160] items-center justify-center rounded-lg border border-dashed border-hairline text-sm text-stone-500">
+          Nothing yet in the last {data.length} days
+        </div>
+      ) : (
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={`${label}: ${format(total)} over ${data.length} days`}>
         {ticks.map((t) => (
           <g key={t}>
@@ -90,6 +96,7 @@ export function DailyBars({
         })}
         <line x1={pad.left} x2={W - pad.right} y1={pad.top + innerH} y2={pad.top + innerH} stroke="#d6cfc3" strokeWidth={1} />
       </svg>
+      )}
     </figure>
   );
 }

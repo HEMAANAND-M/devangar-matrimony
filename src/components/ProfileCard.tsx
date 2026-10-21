@@ -50,7 +50,7 @@ export function ProfileCard({ profile, photo, viewer }: { profile: CardProfile; 
             <svg viewBox="0 0 20 20" className="h-3 w-3" fill="currentColor" aria-hidden>
               <path d="M10 1.5l2.2 1.6 2.7-.1.9 2.6 2.2 1.6-.8 2.6.8 2.6-2.2 1.6-.9 2.6-2.7-.1L10 18.5l-2.2-1.6-2.7.1-.9-2.6L2 12.8l.8-2.6L2 7.6l2.2-1.6.9-2.6 2.7.1L10 1.5zm-1 11.3l5-5-1.2-1.2L9 10.4 7.2 8.6 6 9.8l3 3z" />
             </svg>
-            Verified
+            Reviewed
           </span>
         </div>
         {photoHidden && (

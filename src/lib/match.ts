@@ -102,6 +102,7 @@ export function matchScore(viewer: MatchProfile, other: MatchProfile): MatchResu
     score += 20 * share * (report.essentialOk ? 1 : 0.5);
     if (share >= 0.6 && report.essentialOk) reasons.push(`Porutham ${report.score}/${report.total}`);
     if (!report.essentialOk) concerns.push("Essential porutham missing");
+    else if (share < 0.5) concerns.push(`Only ${report.score} of ${report.total} poruthams match`);
   } else {
     score += 12;
   }
