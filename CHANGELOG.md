@@ -3,6 +3,17 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.5.0] — 2026-10-21
+
+### Added
+
+- **Installable app:**
+  - An "Install the app" button in the footer on supported browsers.
+  - A service worker that keeps repeat visits fast.
+  - A bilingual offline page.
+  - Privacy by design: only the build's static files are cached, never member pages, photos or data.
+- **README:** how to publish to the Google Play Store as a Trusted Web Activity.
+
 ## [1.4.0] — 2026-10-21
 
 ### Added

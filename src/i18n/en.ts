@@ -1162,6 +1162,7 @@ export const en = {
   "msg.s.max": "You can keep up to {max} saved searches. Delete one first.",
   "msg.s.saved": "Search saved.",
   "msg.turnstile": "Please complete the security check and try again.",
+  "app.install": "Install the app",
   "notMe.eyebrow": "Account security",
   "notMe.title": "Secure your account",
   "notMe.lead": "Someone signed in to your account from a device you did not recognise. One tap stops them.",

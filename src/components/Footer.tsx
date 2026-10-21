@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/constants";
 import { type TKey, getLocale, getT } from "@/lib/i18n";
+import { AppInstall } from "./AppInstall";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { Logo } from "./Logo";
 
@@ -19,6 +20,7 @@ export async function Footer() {
           <Logo light />
           <p className="mt-5 max-w-sm text-sm leading-relaxed">{t("footer.about")}</p>
           <LanguageSwitch locale={locale} label={t("lang.label")} tone="light" className="mt-6" />
+          <div className="mt-4 empty:hidden"><AppInstall label={t("app.install")} /></div>
         </div>
         {COLUMNS.map(([title, links]) => (
           <div key={title}>
