@@ -32,6 +32,8 @@ jobs:
       DATABASE_URL: postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony
       E2E_DATABASE_URL: postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony
       SESSION_SECRET: e2e-only-session-secret-at-least-32-characters-long
+      # Encrypts phone numbers and emails; the suites derive the same key to look users up.
+      DATA_ENCRYPTION_KEY: e2e-only-data-encryption-key-at-least-32-chars
       SMS_PROVIDER: console-test
       PAYMENTS_DEMO: "true"
       CRON_SECRET: test_cron_secret
@@ -82,8 +84,11 @@ jobs:
       - name: Restart server with staff two-factor on
         if: success() || failure()
         run: |
+          # Stop whatever is listening on :3000 and wait until the port is free, so the health
+          # check below cannot be answered by the old (two-factor off) server.
           pkill -f "next start" || true
-          sleep 2
+          kill $(lsof -t -i:3000) 2>/dev/null || true
+          for i in $(seq 1 30); do curl -sf http://localhost:3000/api/health >/dev/null || break; sleep 1; done
           STAFF_2FA=on nohup sh e2e/serve.sh > server-2fa.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && exit 0; sleep 2; done
           echo "Server did not become healthy"; cat server-2fa.log; exit 1

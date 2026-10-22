@@ -1,6 +1,5 @@
 import "server-only";
-import type { Prisma } from "@prisma/client";
-import { db } from "./db";
+import { type Tx, db } from "./db";
 import { link, notifyProfile } from "./notify";
 import { extendPremium } from "./premium";
 
@@ -14,7 +13,7 @@ export function financialYear(d = new Date()): string {
  * Next sequential invoice number for the financial year. GST rules require an unbroken series, so
  * a transaction-scoped advisory lock serialises allocation. Demo payments use their own series.
  */
-async function nextInvoiceNumber(tx: Prisma.TransactionClient, demo: boolean): Promise<string> {
+async function nextInvoiceNumber(tx: Tx, demo: boolean): Promise<string> {
   const prefix = `${demo ? "DEMO" : "DM"}/${financialYear()}/`;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${prefix}))`;
   const last = await tx.payment.findFirst({

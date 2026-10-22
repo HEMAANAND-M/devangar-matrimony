@@ -15,7 +15,6 @@ SUITES="${*:-smoke features session-cache admin-core admin-roles b-moderation c-
 total_fail=0
 for s in $SUITES; do
   sh reset.sh
-  sh sql.sh -c "DELETE FROM \"User\" WHERE phone LIKE '+9198765%'" >/dev/null
   [ "$s" = chat ] && sh sql.sh -f chat-setup.sql >/dev/null
   case "$s" in
     smoke|features) out=$(timeout 600 node "$s.mjs" "$LOG" 2>&1) ;;

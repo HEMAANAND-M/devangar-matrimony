@@ -7,6 +7,7 @@ import { type FormState, str } from "@/lib/form";
 import { HOUR, RATE_LIMITED, rateLimit } from "@/lib/rate-limit";
 import { requireUser } from "@/lib/session";
 import { logSecurity } from "@/lib/security-log";
+import { emailFields, emailHash } from "@/lib/field-crypto";
 
 const emailSchema = z.email().max(254);
 
@@ -16,16 +17,16 @@ export async function setEmail(_: FormState, fd: FormData): Promise<FormState> {
   if (!(await rateLimit(`prefs:email:${user.id}`, 10, HOUR))) return { error: RATE_LIMITED };
   const raw = str(fd, "email").toLowerCase();
   if (!raw) {
-    await db.user.update({ where: { id: user.id }, data: { email: null, emailOptIn: false } });
+    await db.user.update({ where: { id: user.id }, data: { email: null, emailHash: null, emailOptIn: false } });
     revalidatePath("/settings");
     return { message: "Email removed." };
   }
   const parsed = emailSchema.safeParse(raw);
   if (!parsed.success) return { error: "Enter a valid email address." };
   if (parsed.data === user.email) return { message: "Email saved." };
-  const taken = await db.user.findFirst({ where: { email: parsed.data, id: { not: user.id } }, select: { id: true } });
+  const taken = await db.user.findFirst({ where: { emailHash: emailHash(parsed.data), id: { not: user.id } }, select: { id: true } });
   if (taken) return { error: "That email is already used by another account." };
-  await db.user.update({ where: { id: user.id }, data: { email: parsed.data } });
+  await db.user.update({ where: { id: user.id }, data: emailFields(parsed.data) });
   await logSecurity(user.id, "email_changed", parsed.data.replace(/^(.).*(@.*)$/, "$1•••$2"));
   revalidatePath("/settings");
   return { message: "Email saved." };

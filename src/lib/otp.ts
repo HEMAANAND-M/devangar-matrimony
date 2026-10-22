@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 import { rateLimit } from "./rate-limit";
 import { sendOtpCode } from "./sms";
+import { phoneHash } from "./field-crypto";
 
 const TTL_MS = 10 * 60 * 1000;
 export const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -20,7 +21,7 @@ export async function issueOtp(userId: string, phone: string, purpose: OtpPurpos
     return { ok: false, error: "Please wait a minute before requesting another code." };
   }
   // Caps SMS spend and stops a number being flooded with codes.
-  if (!(await rateLimit(`otp:day:${phone}`, 8, 24 * 60 * 60 * 1000))) {
+  if (!(await rateLimit(`otp:day:${phoneHash(phone)}`, 8, 24 * 60 * 60 * 1000))) {
     return { ok: false, error: "Daily limit for codes reached. Please try again tomorrow." };
   }
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");

@@ -1,6 +1,6 @@
 {
     "name": "devangar-matrimony",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "private": true,
     "scripts": {
         "dev": "next dev",
@@ -10,7 +10,8 @@
         "typecheck": "tsc --noEmit",
         "db:migrate": "prisma migrate dev",
         "db:seed": "prisma db seed",
-        "postinstall": "prisma generate"
+        "postinstall": "prisma generate",
+        "db:encrypt-contacts": "tsx scripts/encrypt-contacts.ts"
     },
     "dependencies": {
         "@prisma/client": "^6.19.3",

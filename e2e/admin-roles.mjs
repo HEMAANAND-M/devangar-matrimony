@@ -1,5 +1,6 @@
 // Agent A checks: admin overview, members, member detail, staff, activity, exports.
 import { launch } from "./browser.mjs";
+import { sql } from "./db.mjs";
 import { readFileSync } from "node:fs";
 const LOG = process.argv[3];
 const lastOtp = (phone) => [...readFileSync(LOG, "utf8").matchAll(new RegExp(`\\[OTP\\] \\+91${phone}: (\\d{6})`, "g"))].pop()?.[1];
@@ -43,7 +44,7 @@ async function visit(page, path, name) {
 }
 
 try {
-  const firstHref = "/admin/members/cmvgfzbs60003q244ua0jy0s2";
+  const firstHref = `/admin/members/${sql(`SELECT "userId" FROM "Profile" WHERE code = 'DM90002'`)}`;
   // Moderator
   const modCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const mp = await login(modCtx, "9000000001", "moderator123");

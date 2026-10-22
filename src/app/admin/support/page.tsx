@@ -19,7 +19,7 @@ export default async function SupportInbox({ searchParams }: { searchParams: Pro
   const q = params.q?.trim();
   const where: Prisma.SupportTicketWhereInput = {
     ...(status && { status }),
-    ...(q && { OR: [{ subject: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] }),
+    ...(q && { OR: [{ subject: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }] }),
   };
   const [tickets, total, counts] = await Promise.all([
     db.supportTicket.findMany({

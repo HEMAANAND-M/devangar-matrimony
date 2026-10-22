@@ -9,6 +9,7 @@ import { HOUR, RATE_LIMITED, rateLimitAll } from "@/lib/rate-limit";
 import { MAX_FAMILY_MANAGERS } from "@/lib/family";
 import { requireUser } from "@/lib/session";
 import { tm } from "@/lib/i18n";
+import { phoneFields, phoneHash } from "@/lib/field-crypto";
 
 const RELATIONS = ["FATHER", "MOTHER", "BROTHER", "SISTER", "GUARDIAN", "OTHER"] as const;
 const INVITE_DAYS = 7;
@@ -37,8 +38,8 @@ export async function inviteFamilyMember(_: FormState, fd: FormData): Promise<Fo
   if (managers + invites >= MAX_FAMILY_MANAGERS) return { error: await tm(`Up to ${MAX_FAMILY_MANAGERS} family members can manage a profile.`) };
 
   await db.familyInvite.upsert({
-    where: { profileId_phone: { profileId: profile.id, phone } },
-    create: { profileId: profile.id, phone, relation, expiresAt: new Date(Date.now() + INVITE_DAYS * 24 * HOUR) },
+    where: { profileId_phoneHash: { profileId: profile.id, phoneHash: phoneHash(phone) } },
+    create: { profileId: profile.id, ...phoneFields(phone), relation, expiresAt: new Date(Date.now() + INVITE_DAYS * 24 * HOUR) },
     update: { relation, expiresAt: new Date(Date.now() + INVITE_DAYS * 24 * HOUR) },
   });
   revalidatePath("/settings");
@@ -61,7 +62,7 @@ export async function removeFamilyManager(managerId: string) {
 export async function acceptFamilyInvite(inviteId: string) {
   const user = await requireUser();
   if (user.profile) redirect("/dashboard");
-  const invite = await db.familyInvite.findFirst({ where: { id: inviteId, phone: user.phone, expiresAt: { gt: new Date() } } });
+  const invite = await db.familyInvite.findFirst({ where: { id: inviteId, phoneHash: user.phoneHash, expiresAt: { gt: new Date() } } });
   if (!invite) redirect("/profile/edit");
   const managers = await db.profileManager.count({ where: { profileId: invite.profileId } });
   if (managers >= MAX_FAMILY_MANAGERS) redirect("/profile/edit?family=full");
@@ -76,7 +77,7 @@ export async function acceptFamilyInvite(inviteId: string) {
 
 export async function declineFamilyInvite(inviteId: string) {
   const user = await requireUser();
-  await db.familyInvite.deleteMany({ where: { id: inviteId, phone: user.phone } });
+  await db.familyInvite.deleteMany({ where: { id: inviteId, phoneHash: user.phoneHash } });
   revalidatePath("/profile/edit");
 }
 

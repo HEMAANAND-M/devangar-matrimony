@@ -24,6 +24,7 @@ All are optional; the defaults match the local setup in the main README.
 |---|---|---|
 | `E2E_BROWSER_CHANNEL` | `msedge` on Windows, bundled Chromium elsewhere | Browser to drive (`msedge`, `chrome`, or empty for bundled Chromium) |
 | `PSQL` | newest `C:\Program Files\PostgreSQL\<version>\bin\psql.exe` on Windows, `psql` elsewhere | psql binary used for test setup |
+| `DATA_ENCRYPTION_KEY` / `SESSION_SECRET` | read from the environment, else from `../.env` | Must match the server: phone numbers are encrypted, and the suites look users up by the same keyed hash |
 | `E2E_DATABASE_URL` | `postgresql://postgres:devangar_local@localhost:5432/devangar_matrimony` | Database the suites reset and inspect |
 
 ## Run everything

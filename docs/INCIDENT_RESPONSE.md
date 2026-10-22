@@ -21,7 +21,14 @@ Change these in the hosting dashboard (Vercel → Project → Settings → Envir
 redeploy:
 
 - `SESSION_SECRET`: signs everyone out and invalidates sign-in links. **Do not** change it without also
-  setting `ID_DOC_KEY` and `PHOTO_STORAGE_KEY` explicitly, because both fall back to keys derived from it.
+  setting `DATA_ENCRYPTION_KEY`, `ID_DOC_KEY` and `PHOTO_STORAGE_KEY` explicitly, because they fall back to keys derived from it.
+- `DATA_ENCRYPTION_KEY`: **never rotate it by simply changing the value.** Every stored phone number and
+  email is encrypted with it, so a new value makes them all unreadable and nobody can log in. If the
+  key itself leaked: take a database backup, then write a re-key script that decrypts each value
+  with the old key and re-encrypts it, and recomputes the `phoneHash` and `emailHash` columns, with
+  the new key (model it on `scripts/encrypt-contacts.ts`). Test it on a copy, then swap the key and
+  run it in one maintenance window. If `DATA_ENCRYPTION_KEY` is unset, the key derives from
+  `SESSION_SECRET`, so the same caution applies to that secret.
 - `ID_DOC_KEY`: only if it was leaked. Documents waiting for review that were encrypted with the
   old key can no longer be opened, so ask those members to upload again.
 - `CRON_SECRET`, `RAZORPAY_*`, `WHATSAPP_TOKEN`, `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`,

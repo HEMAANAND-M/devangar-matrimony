@@ -3,7 +3,7 @@
 // Uses throwaway numbers +9198765000xx only, so it never disturbs the shared seed accounts.
 import fs from "node:fs";
 import { launch } from "./browser.mjs";
-import { sql } from "./db.mjs";
+import { byPhone, byPhoneOf, phoneHash, sql } from "./db.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3106";
 const LOG = process.argv[3];
@@ -67,12 +67,12 @@ async function loginForm(local, password = "test12345") {
 const P1 = "+919876500001", P2 = "+919876500002", P3 = "+919876500003";
 let savedRef = null;
 try {
-  sql(`DELETE FROM "User" WHERE phone LIKE '+91987650000%'`);
+  sql(`DELETE FROM "User" WHERE ${byPhone(["+919876500001", "+919876500002", "+919876500003"])}`);
   sql(`DELETE FROM "RateLimit" WHERE key LIKE 'register:ip:%' OR key LIKE '%9876500%'`);
   // Referral: reuse the referrer's code if one exists, otherwise set a temporary one.
-  savedRef = sql(`SELECT COALESCE("referralCode", '') FROM "User" WHERE phone = '+919000000100'`);
+  savedRef = sql(`SELECT COALESCE("referralCode", '') FROM "User" WHERE ${byPhone(`+919000000100`)}`);
   const code = savedRef || "FTESTREF";
-  if (!savedRef) sql(`UPDATE "User" SET "referralCode" = 'FTESTREF' WHERE phone = '+919000000100'`);
+  if (!savedRef) sql(`UPDATE "User" SET "referralCode" = 'FTESTREF' WHERE ${byPhone(`+919000000100`)}`);
 
   const mark = await registerAndVerify("9876500001", `?ref=${code}`);
   const body = await page.locator("main").innerText();
@@ -82,7 +82,7 @@ try {
   await enterOtp(P1, mark);
   await page.waitForURL(/\/profile\/edit/, { timeout: 180000 });
   check("OTP verification lands on profile creation", true);
-  const referred = sql(`SELECT u."referredById" = r.id FROM "User" u, "User" r WHERE u.phone = '${P1}' AND r.phone = '+919000000100'`);
+  const referred = sql(`SELECT u."referredById" = r.id FROM "User" u, "User" r WHERE ${byPhoneOf("u", `${P1}`)} AND ${byPhoneOf("r", `+919000000100`)}`);
   check("Referral code recorded on the new account", referred === "t", referred);
 
   await page.goto(`${BASE}/settings`);
@@ -91,31 +91,32 @@ try {
   check("Settings lists recent sign-ins", /Recent sign-ins/i.test(settings) && /This device/.test(settings));
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   check("Settings has no horizontal overflow at 390px", !overflow);
-  check("LoginEvent stored with hashed IP", sql(`SELECT count(*) FROM "LoginEvent" e JOIN "User" u ON u.id = e."userId" WHERE u.phone = '${P1}' AND length(e."ipHash") = 64`) !== "0");
+  check("LoginEvent stored with hashed IP", sql(`SELECT count(*) FROM "LoginEvent" e JOIN "User" u ON u.id = e."userId" WHERE ${byPhoneOf("u", `${P1}`)} AND length(e."ipHash") = 64`) !== "0");
 
   // Health + cron
   const health = await fetch(`${BASE}/api/health`);
   check("Health endpoint answers 200 ok", health.status === 200 && (await health.json()).ok === true);
   const noAuth = await fetch(`${BASE}/api/cron/cleanup`);
   check("Cleanup cron rejects missing secret", noAuth.status === 401);
-  sql(`INSERT INTO "User" (id, phone, "passwordHash", "phoneVerified", "createdAt") VALUES ('f_stale_user', '+919876500009', 'x', false, (NOW() AT TIME ZONE 'UTC') - INTERVAL '8 days')`);
+  // Phones are encrypted; the cleanup job never decrypts, so a placeholder ciphertext is enough here.
+  sql(`INSERT INTO "User" (id, phone, "phoneHash", "passwordHash", "phoneVerified", "createdAt") VALUES ('f_stale_user', 'v1:placeholder', '${phoneHash("+919876500009")}', 'x', false, (NOW() AT TIME ZONE 'UTC') - INTERVAL '8 days')`);
   const cron = await fetch(`${BASE}/api/cron/cleanup`, { headers: { Authorization: "Bearer test_cron_secret" } });
   const cronBody = cron.ok ? await cron.json() : {};
   check("Cleanup cron deletes stale unverified accounts", cron.ok && sql(`SELECT count(*) FROM "User" WHERE id = 'f_stale_user'`) === "0", JSON.stringify(cronBody));
 
   // Suspension: open session is rejected, login explains why, expiry lifts it.
-  sql(`UPDATE "User" SET status = 'SUSPENDED', "statusReason" = 'Test reason', "sessionVersion" = "sessionVersion" + 1, "suspendedUntil" = (NOW() AT TIME ZONE 'UTC') + INTERVAL '1 day' WHERE phone = '${P1}'`);
+  sql(`UPDATE "User" SET status = 'SUSPENDED', "statusReason" = 'Test reason', "sessionVersion" = "sessionVersion" + 1, "suspendedUntil" = (NOW() AT TIME ZONE 'UTC') + INTERVAL '1 day' WHERE ${byPhone(`${P1}`)}`);
   await page.goto(`${BASE}/settings`);
   await page.waitForURL(/\/login/, { timeout: 180000 }).catch(() => {});
   check("Suspended member's open session is rejected", /\/login/.test(page.url()), page.url());
   await loginForm("9876500001");
   const suspended = await alertText();
   check("Login explains the suspension and reason", /suspended until/i.test(suspended) && /Test reason/.test(suspended), suspended);
-  sql(`UPDATE "User" SET "suspendedUntil" = (NOW() AT TIME ZONE 'UTC') - INTERVAL '1 minute' WHERE phone = '${P1}'`);
+  sql(`UPDATE "User" SET "suspendedUntil" = (NOW() AT TIME ZONE 'UTC') - INTERVAL '1 minute' WHERE ${byPhone(`${P1}`)}`);
   await loginForm("9876500001");
   await page.waitForURL(/\/profile\/edit/, { timeout: 180000 }).catch(() => {});
-  check("Expired suspension lifts itself on login", /\/profile\/edit/.test(page.url()) && sql(`SELECT status FROM "User" WHERE phone = '${P1}'`) === "ACTIVE");
-  sql(`UPDATE "User" SET status = 'BANNED', "statusReason" = 'Fake profile' WHERE phone = '${P1}'`);
+  check("Expired suspension lifts itself on login", /\/profile\/edit/.test(page.url()) && sql(`SELECT status FROM "User" WHERE ${byPhone(`${P1}`)}`) === "ACTIVE");
+  sql(`UPDATE "User" SET status = 'BANNED', "statusReason" = 'Fake profile' WHERE ${byPhone(`${P1}`)}`);
   await ctx.clearCookies();
   await loginForm("9876500001");
   const banned = await alertText();
@@ -126,14 +127,14 @@ try {
   await registerAndVerify("9876500002");
   await page.getByRole("button", { name: "Start again" }).click();
   await page.waitForURL(/\/register/, { timeout: 180000 });
-  check("Start again removes the unverified account", sql(`SELECT count(*) FROM "User" WHERE phone = '${P2}'`) === "0");
+  check("Start again removes the unverified account", sql(`SELECT count(*) FROM "User" WHERE ${byPhone(`${P2}`)}`) === "0");
 
   // Staff second step.
   await ctx.clearCookies();
   const m3 = await registerAndVerify("9876500003");
   await enterOtp(P3, m3);
   await page.waitForURL(/\/profile\/edit/, { timeout: 180000 });
-  sql(`UPDATE "User" SET role = 'MODERATOR' WHERE phone = '${P3}'`);
+  sql(`UPDATE "User" SET role = 'MODERATOR' WHERE ${byPhone(`${P3}`)}`);
   await ctx.clearCookies();
   const staffMark = await loginForm("9876500003");
   await page.waitForURL(/\/login\/staff/, { timeout: 180000 });
@@ -156,7 +157,7 @@ try {
   check("Correct staff code opens the admin portal", /\/admin/.test(page.url()));
 
   // Idle timeout.
-  sql(`UPDATE "User" SET "lastActiveAt" = (NOW() AT TIME ZONE 'UTC') - INTERVAL '31 minutes' WHERE phone = '${P3}'`);
+  sql(`UPDATE "User" SET "lastActiveAt" = (NOW() AT TIME ZONE 'UTC') - INTERVAL '31 minutes' WHERE ${byPhone(`${P3}`)}`);
   await page.waitForTimeout(2000);
   await page.goto(`${BASE}/admin`).catch(() => page.goto(`${BASE}/admin`));
   await page.waitForURL(/\/login/, { timeout: 180000 }).catch(() => {});
@@ -165,8 +166,8 @@ try {
   check("Run completed", false, `${e.message.split("\n")[0]} @ ${page.url()}`);
   await page.screenshot({ path: "f-fail.png" }).catch(() => {});
 } finally {
-  sql(`DELETE FROM "User" WHERE phone LIKE '+91987650000%'`);
-  if (!savedRef) sql(`UPDATE "User" SET "referralCode" = NULL WHERE phone = '+919000000100' AND "referralCode" = 'FTESTREF'`);
+  sql(`DELETE FROM "User" WHERE ${byPhone(["+919876500001", "+919876500002", "+919876500003"])}`);
+  if (!savedRef) sql(`UPDATE "User" SET "referralCode" = NULL WHERE ${byPhone(`+919000000100`)} AND "referralCode" = 'FTESTREF'`);
 }
 await browser.close();
 const failed = results.filter((r) => !r.ok).length;

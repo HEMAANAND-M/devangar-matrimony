@@ -1,6 +1,6 @@
 // Tamil checks: language switch (signed out and signed in), saved preference, html lang, layout.
 import { launch } from "./browser.mjs";
-import { sql } from "./db.mjs";
+import { byPhone, byPhoneOf, sql } from "./db.mjs";
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const results = [];
 const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`); };
@@ -36,7 +36,7 @@ try {
   await page.locator("footer button", { hasText: "தமிழ்" }).click();
   await page.waitForFunction(() => document.documentElement.lang === "ta", null, { timeout: 20000 });
   await page.waitForLoadState("networkidle");
-  check("Signed-in choice saved on the account", sql(`SELECT locale FROM "User" WHERE phone='${phone}'`) === "ta");
+  check("Signed-in choice saved on the account", sql(`SELECT locale FROM "User" WHERE ${byPhone(`${phone}`)}`) === "ta");
   for (const p of ["/dashboard", "/search", "/profiles/DM90002", "/interests", "/messages", "/settings", "/visitors", "/upgrade"]) {
     const res = await page.goto(`${BASE}${p}`);
     const o = await overflow(page);
@@ -50,10 +50,10 @@ try {
   await p2.click('main button[type="submit"]');
   await p2.waitForURL(/dashboard/);
   check("Saved Tamil preference applies on a new device", (await p2.evaluate(() => document.documentElement.lang)) === "ta");
-  sql(`UPDATE "User" SET locale='en' WHERE phone='${phone}'`);
+  sql(`UPDATE "User" SET locale='en' WHERE ${byPhone(`${phone}`)}`);
 } catch (e) {
   check("Run completed", false, e.message.split("\n")[0]);
-  sql(`UPDATE "User" SET locale='en' WHERE phone='+919000000105'`);
+  sql(`UPDATE "User" SET locale='en' WHERE ${byPhone(`+919000000105`)}`);
 }
 await browser.close();
 console.log(`\n${results.filter(Boolean).length}/${results.length} passed`);

@@ -3,6 +3,41 @@
 All notable changes to Devangar Matrimony. Versions follow [Semantic Versioning](https://semver.org/):
 a new major version changes how existing features behave, a minor version adds features, a patch fixes bugs.
 
+## [1.8.0] — 2026-10-22
+
+Three database migrations: `20261022090000_ads_and_campaigns`, `20261022120000_encrypt_contacts` and
+`20261022120100_contacts_hash_required`. **On an existing database, follow "Upgrading to 1.8.0" in
+README.md** (migrate, run `npm run db:encrypt-contacts`, migrate again). Set `DATA_ENCRYPTION_KEY`
+before upgrading.
+
+### Added
+
+- **Home-page "Wedding services" carousel** below "How it works", with sponsored banners from
+  wedding planners, photographers, venues and others. **Admin → Advertisements** manages them:
+  - banner upload, schedule and order
+  - impressions, clicks and click-through rate
+- **Bulk campaigns (Admin → Campaigns):** WhatsApp or email to a filtered group of opted-in members
+  (premium or free, gender, city, inactive for N days, join date):
+  - live recipient count, preview and test send
+  - sending in batches, cancel, and a limit of 3 campaigns a day
+- **Premium renewal reminders** 7 days and 1 day before premium ends, and the day after it ends, with
+  a one-tap link that opens the Premium page at the member's plan. In English and Tamil.
+- **OTP by WhatsApp:** with `OTP_CHANNEL=whatsapp` codes are sent with a WhatsApp authentication
+  template, falling back to SMS if WhatsApp fails.
+- **Faster photos abroad:** photos are served through signed, expiring links that a CDN can cache.
+  Unsigned requests still require a login.
+- **The browser test suites run in GitHub Actions** on every push (`.github/workflows/e2e.yml`).
+- **Sample advertisements** are seeded for demos.
+
+### Security
+
+- **Phone numbers and email addresses are encrypted at rest** (AES-256-GCM with a separate
+  blind-index key):
+  - Login, registration, family invites and duplicate checks look numbers up by keyed hash.
+  - Rate-limit records no longer contain phone numbers.
+  - Support-ticket contact details are encrypted too.
+  - Admin member search now matches a full mobile number or email exactly.
+
 ## [1.7.0] — 2026-10-21
 
 ### Added

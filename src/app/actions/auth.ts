@@ -19,6 +19,7 @@ import { featureEnabled } from "@/lib/settings";
 import { TURNSTILE_FAILED, verifyTurnstile } from "@/lib/turnstile";
 import { deletePhotos } from "@/lib/storage";
 import { logSecurity } from "@/lib/security-log";
+import { phoneFields, phoneHash } from "@/lib/field-crypto";
 
 // Compared against when the phone is unknown, so both paths cost the same.
 const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
@@ -52,14 +53,14 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   if (await isBreachedPassword(password)) return { error: await tm(BREACHED_PASSWORD) };
   if (fd.get("terms") !== "on") return { error: await tm("Please accept the terms to continue.") };
 
-  if (await db.user.findUnique({ where: { phone } })) {
+  if (await db.user.findUnique({ where: { phoneHash: phoneHash(phone) } })) {
     return { error: await tm("This number is already registered. Please log in.") };
   }
   const ref = str(fd, "ref").toUpperCase().slice(0, 32);
   const referrer = ref ? await db.user.findUnique({ where: { referralCode: ref }, select: { id: true } }) : null;
   const user = await db.user.create({
     data: {
-      phone,
+      ...phoneFields(phone),
       passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
       whatsappOptIn: fd.get("whatsapp") === "on",
       referredById: referrer?.id,
@@ -78,13 +79,14 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   // Per-IP stops sweeping many accounts; per-phone stops guessing one account from many IPs.
   const allowed = await rateLimitAll([
     [`login:ip:${ip}`, 20, 15 * MINUTE],
-    [`login:phone:${phone ?? "invalid"}`, 8, 15 * MINUTE],
+    // Keyed by the number's hash so the rate-limit table never holds phone numbers.
+    [`login:phone:${phone ? phoneHash(phone) : "invalid"}`, 8, 15 * MINUTE],
   ]);
   if (!allowed) return { error: await tm(RATE_LIMITED) };
   if (!(await verifyTurnstile(fd))) return { error: await tm(TURNSTILE_FAILED) };
 
   const password = str(fd, "password");
-  const user = phone ? await db.user.findUnique({ where: { phone }, include: { profile: { select: { id: true } }, managing: { select: { id: true } } } }) : null;
+  const user = phone ? await db.user.findUnique({ where: { phoneHash: phoneHash(phone) }, include: { profile: { select: { id: true } }, managing: { select: { id: true } } } }) : null;
   const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !ok) return { error: await tm("Incorrect mobile number or password.") };
   const blocked = await accountBlock(user);
@@ -185,7 +187,7 @@ export async function requestPasswordReset(_: FormState, fd: FormData): Promise<
   const phone = normalizePhone(str(fd, "phone"));
   if (!phone) return { error: await tm("Enter a valid 10-digit Indian mobile number.") };
 
-  const user = await db.user.findUnique({ where: { phone } });
+  const user = await db.user.findUnique({ where: { phoneHash: phoneHash(phone) } });
   if (user) await issueOtp(user.id, phone);
   redirect(`/reset-password?phone=${encodeURIComponent(phone.slice(3))}`);
 }
@@ -195,7 +197,7 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
   const ip = await clientIp();
   const allowed = await rateLimitAll([
     [`reset-verify:ip:${ip}`, 20, HOUR],
-    [`reset-verify:phone:${phone ?? "invalid"}`, 10, HOUR],
+    [`reset-verify:phone:${phone ? phoneHash(phone) : "invalid"}`, 10, HOUR],
   ]);
   if (!allowed) return { error: await tm(RATE_LIMITED) };
 
@@ -206,7 +208,7 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
   if (problem) return { error: await tm(problem) };
   if (await isBreachedPassword(password)) return { error: await tm(BREACHED_PASSWORD) };
 
-  const user = await db.user.findUnique({ where: { phone } });
+  const user = await db.user.findUnique({ where: { phoneHash: phoneHash(phone) } });
   if (!user) return { error: await tm("Incorrect or expired code.") };
   const result = await checkOtp(user.id, code);
   if (!result.ok) return { error: await tm(result.error) };

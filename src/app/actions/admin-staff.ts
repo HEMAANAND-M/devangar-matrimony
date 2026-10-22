@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { maskPhone, normalizePhone } from "@/lib/format";
 import { type FormState, str } from "@/lib/form";
 import { requireAdmin } from "@/lib/session";
+import { phoneHash } from "@/lib/field-crypto";
 
 function log(adminId: string, action: string, targetId: string, detail?: string) {
   return db.adminLog.create({ data: { adminId, action, targetId, detail } });
@@ -14,7 +15,7 @@ export async function addModerator(_: FormState, fd: FormData): Promise<FormStat
   const admin = await requireAdmin();
   const phone = normalizePhone(str(fd, "phone"));
   if (!phone) return { error: "Enter a valid 10-digit mobile number." };
-  const user = await db.user.findUnique({ where: { phone } });
+  const user = await db.user.findUnique({ where: { phoneHash: phoneHash(phone) } });
   if (!user || !user.phoneVerified) return { error: "No verified account with that number. Ask them to register first." };
   if (user.role !== "USER") return { error: `That account is already ${user.role === "ADMIN" ? "an admin" : "a moderator"}.` };
   if (user.status !== "ACTIVE") return { error: "That account is suspended or banned." };

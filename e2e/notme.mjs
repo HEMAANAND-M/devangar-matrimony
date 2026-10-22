@@ -1,11 +1,11 @@
 // "This wasn't me": a new-device alert link signs out every device and locks the password.
 import { launch } from "./browser.mjs";
-import { sql } from "./db.mjs";
+import { byPhone, byPhoneOf, sql } from "./db.mjs";
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const results = [];
 const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`); };
 const phone = "+919000000105";
-const originalHash = sql(`SELECT "passwordHash" FROM "User" WHERE phone='${phone}'`);
+const originalHash = sql(`SELECT "passwordHash" FROM "User" WHERE ${byPhone(`${phone}`)}`);
 const browser = await launch();
 async function login(ctx) {
   const page = await ctx.newPage();
@@ -18,8 +18,8 @@ async function login(ctx) {
   return page;
 }
 try {
-  sql(`UPDATE "User" SET "whatsappOptIn" = true WHERE phone='${phone}'`);
-  sql(`DELETE FROM "LoginEvent" WHERE "userId" = (SELECT id FROM "User" WHERE phone='${phone}')`);
+  sql(`UPDATE "User" SET "whatsappOptIn" = true WHERE ${byPhone(`${phone}`)}`);
+  sql(`DELETE FROM "LoginEvent" WHERE "userId" = (SELECT id FROM "User" WHERE ${byPhone(`${phone}`)})`);
   sql(`DELETE FROM "Notification" WHERE template='new_sign_in'`);
   const owner = await browser.newContext();
   const ownerPage = await login(owner);
@@ -58,7 +58,7 @@ try {
 } catch (e) {
   check("Run completed", false, e.message.split("\n")[0]);
 } finally {
-  sql(`UPDATE "User" SET "passwordHash" = '${originalHash.replace(/'/g, "''")}', "whatsappOptIn" = false WHERE phone='${phone}'`);
+  sql(`UPDATE "User" SET "passwordHash" = '${originalHash.replace(/'/g, "''")}', "whatsappOptIn" = false WHERE ${byPhone(`${phone}`)}`);
   await browser.close();
 }
 console.log(`\n${results.filter(Boolean).length}/${results.length} passed`);

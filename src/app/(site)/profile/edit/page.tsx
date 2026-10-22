@@ -48,7 +48,7 @@ export default async function EditProfilePage() {
     p
       ? []
       : db.familyInvite.findMany({
-          where: { phone: user.phone, expiresAt: { gt: new Date() } },
+          where: { phoneHash: user.phoneHash, expiresAt: { gt: new Date() } },
           include: { profile: { select: { name: true, code: true } } },
         }),
     getLists(),

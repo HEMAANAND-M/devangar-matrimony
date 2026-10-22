@@ -8,6 +8,7 @@ import { link, notifyProfile, notifyUser } from "@/lib/notify";
 import { HOUR, RATE_LIMITED, clientIp, rateLimitAll } from "@/lib/rate-limit";
 import { getCurrentUser, isStaff, requireStaff, requireUser } from "@/lib/session";
 import { TURNSTILE_FAILED, verifyTurnstile } from "@/lib/turnstile";
+import { encryptField } from "@/lib/field-crypto";
 
 function log(adminId: string, action: string, targetId: string, detail?: string) {
   return db.adminLog.create({ data: { adminId, action, targetId, detail } });
@@ -42,7 +43,7 @@ export async function createTicket(_: FormState, fd: FormData): Promise<FormStat
   }
 
   const ticket = await db.supportTicket.create({
-    data: { userId: user?.id ?? null, name, phone, email, subject, messages: { create: { authorId: user?.id ?? null, body } } },
+    data: { userId: user?.id ?? null, name, phone: phone && encryptField(phone), email: email && encryptField(email), subject, messages: { create: { authorId: user?.id ?? null, body } } },
   });
   revalidatePath("/admin/support");
   if (user) return { redirect: `/support/${ticket.id}` };

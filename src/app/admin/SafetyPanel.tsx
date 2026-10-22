@@ -10,7 +10,7 @@ export async function SafetyPanel() {
       SELECT f AS flag, count(*) AS count FROM "Profile", unnest(flags) AS f GROUP BY f ORDER BY count DESC`,
     db.user.groupBy({ by: ["status"], where: { status: { not: "ACTIVE" } }, _count: true }),
     // The login limiter counts attempts per number in 15-minute windows; 5+ suggests password guessing.
-    db.rateLimit.count({ where: { key: { startsWith: "login:phone:+" }, count: { gte: 5 }, resetAt: { gt: new Date() } } }),
+    db.rateLimit.count({ where: { key: { startsWith: "login:phone:", not: "login:phone:invalid" }, count: { gte: 5 }, resetAt: { gt: new Date() } } }),
   ]);
   const restricted = Object.fromEntries(statusRows.map((r) => [r.status, r._count]));
   const items: { href: string; label: string; detail: string; count: number }[] = [

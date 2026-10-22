@@ -1,7 +1,7 @@
 // Advertisements carousel, bulk campaigns, renewal reminders and signed (CDN-cacheable) photo URLs.
 import { createRequire } from "node:module";
 import { launch } from "./browser.mjs";
-import { sql } from "./db.mjs";
+import { byPhone, byPhoneOf, sql } from "./db.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const require = createRequire(new URL("../package.json", import.meta.url));
@@ -64,7 +64,7 @@ try {
   check("Paused ad image is not public", (await fetch(`${BASE}/api/ads/${adId}`)).status === 404);
 
   // ── Campaigns ─────────────────────────────────────────────────
-  sql(`UPDATE "User" SET "whatsappOptIn" = true WHERE phone IN ('+919000000100','+919000000101','+919000000102')`);
+  sql(`UPDATE "User" SET "whatsappOptIn" = true WHERE ${byPhone(["+919000000100","+919000000101","+919000000102"])}`);
   await admin.goto(`${BASE}/admin/campaigns`);
   await admin.fill('input[name="name"]', "Diwali greetings (test)");
   await admin.selectOption('select[name="template"]', "announcement");
@@ -88,13 +88,13 @@ try {
 
   // ── Renewal reminders ─────────────────────────────────────────
   sql(`UPDATE "Profile" SET "premiumUntil" = (now() AT TIME ZONE 'UTC') + interval '7 days' WHERE code='DM90005'`);
-  sql(`UPDATE "User" SET "whatsappOptIn" = true WHERE phone='+919000000104'`);
+  sql(`UPDATE "User" SET "whatsappOptIn" = true WHERE ${byPhone(`+919000000104`)}`);
   check("Renewal cron rejects calls without the secret", (await fetch(`${BASE}/api/cron/renewal-reminders`)).status === 401);
   await fetch(`${BASE}/api/cron/renewal-reminders`, { headers: CRON });
-  const reminder = sql(`SELECT params::text FROM "Notification" n JOIN "User" u ON u.id = n."userId" WHERE u.phone='+919000000104' AND template='premium_expiring'`);
+  const reminder = sql(`SELECT params::text FROM "Notification" n JOIN "User" u ON u.id = n."userId" WHERE ${byPhoneOf("u", `+919000000104`)} AND template='premium_expiring'`);
   check("Member is reminded 7 days before premium ends", /renew=1/.test(reminder), reminder.slice(0, 90));
   await fetch(`${BASE}/api/cron/renewal-reminders`, { headers: CRON });
-  check("Reminder is not sent twice", sql(`SELECT count(*) FROM "Notification" n JOIN "User" u ON u.id = n."userId" WHERE u.phone='+919000000104' AND template='premium_expiring'`) === "1");
+  check("Reminder is not sent twice", sql(`SELECT count(*) FROM "Notification" n JOIN "User" u ON u.id = n."userId" WHERE ${byPhoneOf("u", `+919000000104`)} AND template='premium_expiring'`) === "1");
   const member = await signIn("9000000104", "demo12345");
   await member.goto(`${BASE}/upgrade?plan=gold-6&renew=1`);
   check("Renewal link opens the Premium page at the plan", await member.locator("#plan-gold-6").isVisible());
@@ -117,7 +117,7 @@ try {
   check("Run completed", false, e.message.split("\n")[0]);
 } finally {
   sql(`DELETE FROM "Advertisement" WHERE advertiser = 'Lakshmi Studios (test)'`);
-  sql(`UPDATE "User" SET "whatsappOptIn" = false WHERE phone IN ('+919000000100','+919000000101','+919000000102','+919000000104')`);
+  sql(`UPDATE "User" SET "whatsappOptIn" = false WHERE ${byPhone(["+919000000100","+919000000101","+919000000102","+919000000104"])}`);
   await browser.close();
 }
 console.log(`\n${results.filter(Boolean).length}/${results.length} passed`);

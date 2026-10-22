@@ -48,7 +48,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
       <Panel flush>
         <FilterBar resetHref="/admin/members">
           <FilterField label="Search">
-            <input name="q" defaultValue={v("q")} placeholder="Name, DM code, phone or city" className={`${inputCls} w-64`} />
+            <input name="q" defaultValue={v("q")} placeholder="Name, DM code, city, full mobile or email" className={`${inputCls} w-64`} />
           </FilterField>
           <FilterField label="Profile">
             <select name="status" defaultValue={v("status")} className={selectCls}>

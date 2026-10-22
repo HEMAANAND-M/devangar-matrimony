@@ -1,6 +1,6 @@
 // Agent B: end-to-end checks for moderation (approvals, photos, reports, verifications, selfie).
 import { launch } from "./browser.mjs";
-import { sql } from "./db.mjs";
+import { byPhone, byPhoneOf, sql } from "./db.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -24,6 +24,8 @@ const imgB = path.join(dir, "b.png");
 const svg = (fill, shape) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="750"><rect width="600" height="750" fill="${fill}"/>${shape}</svg>`);
 await sharp(svg("#ddd", '<circle cx="300" cy="300" r="160" fill="#432"/><rect x="150" y="500" width="300" height="250" fill="#234"/>')).png().toFile(imgA);
 await sharp(svg("#123", '<rect x="0" y="0" width="300" height="375" fill="#fe8"/><rect x="300" y="375" width="300" height="375" fill="#fe8"/>')).png().toFile(imgB);
+const imgC = path.join(dir, "c.png");
+await sharp(svg("#4a7", '<polygon points="300,80 560,700 40,700" fill="#fff"/>')).png().toFile(imgC);
 
 // Server actions on a loaded dev machine can take a while; wait until the network is quiet.
 const settle = async (page) => { await page.waitForTimeout(800); await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(1500); };
@@ -49,9 +51,9 @@ async function uploadPhoto(page, file) {
   await page.waitForTimeout(1500);
 }
 
-const p102 = sql(`select p.id from "Profile" p join "User" u on u.id=p."userId" where u.phone='+919000000102'`);
-const p103 = sql(`select p.id from "Profile" p join "User" u on u.id=p."userId" where u.phone='+919000000103'`);
-const p100 = sql(`select p.id from "Profile" p join "User" u on u.id=p."userId" where u.phone='+919000000100'`);
+const p102 = sql(`select p.id from "Profile" p join "User" u on u.id=p."userId" where ${byPhoneOf("u", `+919000000102`)}`);
+const p103 = sql(`select p.id from "Profile" p join "User" u on u.id=p."userId" where ${byPhoneOf("u", `+919000000103`)}`);
+const p100 = sql(`select p.id from "Profile" p join "User" u on u.id=p."userId" where ${byPhoneOf("u", `+919000000100`)}`);
 const savedStatus = sql(`select status from "Profile" where id='${p102}'`);
 const savedAbout = sql(`select coalesce(about, '') from "Profile" where id='${p102}'`);
 
@@ -68,9 +70,13 @@ try {
   }
   check("Test photos uploaded", Number(sql(`select count(*) from "Photo" where "profileId" in ('${p102}','${p103}') and not approved`)) >= 3);
 
-  // --- Member 100 (has an approved photo) submits a selfie and an ID document.
+  // --- Member 100 submits a selfie (which needs an approved photo first) and an ID document.
   {
     const m = await session("9000000100", "demo12345");
+    if (sql(`select count(*) from "Photo" where "profileId"='${p100}' and approved`) === "0") {
+      await uploadPhoto(m.page, imgC);
+      sql(`update "Photo" set approved = true where "profileId"='${p100}'`);
+    }
     await m.page.goto(`${BASE}/verify-photo`);
     await m.page.setInputFiles('input[name="selfie"]', imgA);
     await m.page.check('input[name="consent"]');

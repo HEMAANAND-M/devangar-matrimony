@@ -5,6 +5,7 @@
 import { PrismaClient, type Gender } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
+import { phoneFields, phoneHash } from "../src/lib/field-crypto-core";
 
 const db = new PrismaClient();
 
@@ -24,19 +25,19 @@ async function main() {
   }
   const adminPassword = process.env.ADMIN_PASSWORD ?? "admin12345";
   await db.user.upsert({
-    where: { phone: adminPhone },
+    where: { phoneHash: phoneHash(adminPhone) },
     update: { role: "ADMIN" },
-    create: { phone: adminPhone, passwordHash: await bcrypt.hash(adminPassword, 10), role: "ADMIN", phoneVerified: true },
+    create: { ...phoneFields(adminPhone), passwordHash: await bcrypt.hash(adminPassword, 10), role: "ADMIN", phoneVerified: true },
   });
   console.log(`Admin: ${adminPhone} / ${process.env.ADMIN_PASSWORD ? "(from ADMIN_PASSWORD)" : adminPassword}`);
 
   const demoHash = await bcrypt.hash("demo12345", 10);
   for (const [i, d] of DEMO.entries()) {
     const phone = `+91900000010${i}`;
-    if (await db.user.findUnique({ where: { phone } })) continue;
+    if (await db.user.findUnique({ where: { phoneHash: phoneHash(phone) } })) continue;
     await db.user.create({
       data: {
-        phone,
+        ...phoneFields(phone),
         passwordHash: demoHash,
         phoneVerified: true,
         profile: {
@@ -65,9 +66,9 @@ async function main() {
   console.log("Demo members: +919000000100 … +919000000105 / demo12345");
 
   await db.user.upsert({
-    where: { phone: "+919000000001" },
+    where: { phoneHash: phoneHash("+919000000001") },
     update: { role: "MODERATOR" },
-    create: { phone: "+919000000001", passwordHash: await bcrypt.hash("moderator123", 10), role: "MODERATOR", phoneVerified: true },
+    create: { ...phoneFields("+919000000001"), passwordHash: await bcrypt.hash("moderator123", 10), role: "MODERATOR", phoneVerified: true },
   });
   console.log("Moderator: +919000000001 / moderator123");
 
@@ -99,7 +100,7 @@ async function showcase(passwordHash: string) {
   const day = 24 * 60 * 60 * 1000;
   for (let i = 0; i < 40; i++) {
     const phone = `+9190000002${String(i).padStart(2, "0")}`;
-    if (await db.user.findUnique({ where: { phone } })) continue;
+    if (await db.user.findUnique({ where: { phoneHash: phoneHash(phone) } })) continue;
     const gender: Gender = i % 5 < 2 ? "FEMALE" : "MALE";
     const names = FIRST[gender];
     const joined = new Date(Date.now() - ((i * 7) % 30) * day - (i % 9) * 3600_000);
@@ -107,7 +108,7 @@ async function showcase(passwordHash: string) {
     const status = i % 11 === 3 ? "PENDING" : i === 17 ? "MARRIED" : "APPROVED";
     await db.user.create({
       data: {
-        phone,
+        ...phoneFields(phone),
         passwordHash,
         phoneVerified: true,
         createdAt: joined,

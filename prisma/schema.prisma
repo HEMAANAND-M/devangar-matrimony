@@ -138,8 +138,13 @@ enum InterestStatus {
 
 model User {
   id             String          @id @default(cuid())
-  phone          String          @unique
-  email          String?         @unique
+  /// AES-256-GCM ciphertext ("v1:â€¦") of the normalised number; see src/lib/field-crypto-core.ts.
+  phone          String
+  /// Keyed hash of the normalised number, for exact lookups (login, duplicates).
+  phoneHash      String          @unique
+  /// Ciphertext of the lowercase email address.
+  email          String?
+  emailHash      String?         @unique
   passwordHash   String
   role           Role            @default(USER)
   phoneVerified  Boolean         @default(false)
@@ -378,13 +383,15 @@ model FamilyInvite {
   id        String         @id @default(cuid())
   profileId String
   profile   Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// Ciphertext of the invitee's number; phoneHash matches them when they register.
   phone     String
+  phoneHash String
   relation  FamilyRelation
   expiresAt DateTime
   createdAt DateTime       @default(now())
 
-  @@unique([profileId, phone])
-  @@index([phone])
+  @@unique([profileId, phoneHash])
+  @@index([phoneHash])
 }
 
 model Payment {

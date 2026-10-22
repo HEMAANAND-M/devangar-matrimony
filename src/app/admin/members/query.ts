@@ -1,5 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
+import { emailHash, phoneHash } from "@/lib/field-crypto";
+import { normalizePhone } from "@/lib/format";
 
 export type MemberParams = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
@@ -30,7 +32,7 @@ export function memberWhere(params: MemberParams, now = new Date()): Prisma.User
     // A specific flag name (e.g. "scam_language"), as linked from the dashboard's safety panel.
     ...(flagged && flagged !== "yes" && /^[a-z_]{3,40}$/.test(flagged) ? { flags: { has: flagged } } : {}),
   };
-  const digits = q?.replace(/\D/g, "") ?? "";
+  const phone = q ? normalizePhone(q) : null;
 
   const and: Prisma.UserWhereInput[] = [{ role: "USER" }];
   if (status === "NONE") and.push({ profile: null, managing: null });
@@ -50,8 +52,9 @@ export function memberWhere(params: MemberParams, now = new Date()): Prisma.User
         { profile: { name: { contains: q, mode: "insensitive" } } },
         { profile: { code: { equals: q.toUpperCase() } } },
         { profile: { city: { contains: q, mode: "insensitive" } } },
-        ...(digits.length >= 4 ? [{ phone: { contains: digits } }] : []),
-        { email: { contains: q, mode: "insensitive" } },
+        // Contact details are encrypted, so they match exactly (full 10-digit number or full email).
+        ...(phone ? [{ phoneHash: phoneHash(phone) }] : []),
+        ...(q.includes("@") ? [{ emailHash: emailHash(q) }] : []),
       ],
     });
   }

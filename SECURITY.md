@@ -39,6 +39,9 @@ set). Please do not open a public GitHub issue for security problems.
 - Every staff action is recorded in the activity log with who did it and when.
 
 ### Privacy
+- Phone numbers and email addresses are encrypted in the database (AES-256-GCM, `DATA_ENCRYPTION_KEY`).
+  Lookups such as login use a keyed hash, so a copy of the database alone does not reveal anyone's
+  contact details. Rate-limit records store the hash too, never the number.
 - Phone numbers are shown to another member only after the owner approves a request.
 - Photos:
   - Re-encoded to WebP with EXIF/GPS removed, decompression bombs rejected, and watermarked.
@@ -109,8 +112,7 @@ Ordered by value for a matrimony site. Items marked **(config)** need no code.
 15. **Disposable-number and VoIP detection** at registration through the SMS provider's lookup API.
 
 ### Protect data further
-16. **Field-level encryption** of phone numbers and email addresses at rest, with a blind index for
-    lookups, so a database leak does not expose contact details.
+16. ~~Field-level encryption of phone numbers and email addresses~~: done in 1.8.0.
 17. **Signed, short-lived photo URLs** if photos move to a CDN, and per-viewer invisible watermarks
     to trace leaked screenshots.
 18. **Least-privilege database users:** a separate read-only role for reporting, and no superuser

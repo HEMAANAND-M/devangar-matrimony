@@ -113,7 +113,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               id="admin-search"
               name="q"
               type="search"
-              placeholder="Find a member — name, DM code or phone"
+              placeholder="Find a member — name, DM code or full mobile"
               className="w-full rounded-lg border border-hairline bg-cream/60 px-3 py-1.5 text-sm placeholder:text-stone-400 focus:border-gold focus:bg-white focus:outline-none focus:ring-2 focus:ring-gold/25"
             />
           </form>

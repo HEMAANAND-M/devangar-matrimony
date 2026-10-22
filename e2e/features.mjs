@@ -4,7 +4,7 @@ import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { launch } from "./browser.mjs";
-import { sql } from "./db.mjs";
+import { byPhone, byPhoneOf, sql } from "./db.mjs";
 
 // sharp is resolved from the app itself (the parent folder), so the suites need no copy of it.
 const require = createRequire(new URL("../package.json", import.meta.url));
@@ -75,7 +75,7 @@ try {
   // ── Groom registers with WhatsApp opt-in and creates a profile ───
   const groom = await newPage();
   await register(groom, groomPhone, pw, { whatsapp: true });
-  check("WhatsApp opt-in saved at registration", sql(`select "whatsappOptIn" from "User" where phone='+91${groomPhone}'`) === "t");
+  check("WhatsApp opt-in saved at registration", sql(`select "whatsappOptIn" from "User" where ${byPhone(`+91${groomPhone}`)}`) === "t");
   const sel = (n, v) => groom.selectOption(`select[name="${n}"]`, v);
   await sel("profileFor", "SELF");
   await groom.fill('input[name="name"]', "Feature Groom");
@@ -90,7 +90,7 @@ try {
   await groom.selectOption('#city-choice', "Erode");
   await groom.click('button[type="submit"]:has-text("Create profile")');
   await groom.waitForURL(/\/photos/);
-  const groomCode = sql(`select p.code from "Profile" p join "User" u on u.id=p."userId" where u.phone='+91${groomPhone}'`);
+  const groomCode = sql(`select p.code from "Profile" p join "User" u on u.id=p."userId" where ${byPhoneOf("u", `+91${groomPhone}`)}`);
   const groomProfileId = sql(`select id from "Profile" where code='${groomCode}'`);
 
   // ── Watermark is burned into uploaded photos ─────────────────────
@@ -127,14 +127,14 @@ try {
   await sleep(1000);
   check("Moderator approved profile", sql(`select status from "Profile" where id='${groomProfileId}'`) === "APPROVED");
   await sleep(1500);
-  const approvedNote = sql(`select n.status from "Notification" n join "User" u on u.id=n."userId" where u.phone='+91${groomPhone}' and template='profile_approved'`);
+  const approvedNote = sql(`select n.status from "Notification" n join "User" u on u.id=n."userId" where ${byPhoneOf("u", `+91${groomPhone}`)} and template='profile_approved'`);
   check("WhatsApp 'profile approved' recorded for opted-in member", approvedNote === "NOT_CONFIGURED", approvedNote || "none");
 
   // ── Interest → acceptance; free member cannot see contact ────────
   await groom.goto(`${BASE}/profiles/DM90002`);
   await groom.click('button:has-text("Send interest")');
   await visible(groom.locator("text=Interest sent ·"));
-  check("No WhatsApp for member who did not opt in", sql(`select count(*) from "Notification" n join "User" u on u.id=n."userId" where u.phone='+919000000101'`) === "0");
+  check("No WhatsApp for member who did not opt in", sql(`select count(*) from "Notification" n join "User" u on u.id=n."userId" where ${byPhoneOf("u", `+919000000101`)}`) === "0");
   const bride = await newPage();
   await login(bride, "9000000101", "demo12345");
   await bride.goto(`${BASE}/interests`);
@@ -142,7 +142,7 @@ try {
   await bride.waitForLoadState("networkidle");
   await sleep(1500);
   check("WhatsApp 'interest accepted' recorded for groom",
-    sql(`select count(*) from "Notification" n join "User" u on u.id=n."userId" where u.phone='+91${groomPhone}' and template='interest_accepted'`) === "1");
+    sql(`select count(*) from "Notification" n join "User" u on u.id=n."userId" where ${byPhoneOf("u", `+91${groomPhone}`)} and template='interest_accepted'`) === "1");
   await groom.goto(`${BASE}/profiles/DM90002`);
   const freeHtml = await groom.content();
   check("Free member sees upgrade prompt, not the phone number", freeHtml.includes("Upgrade to request phone number") && !freeHtml.includes("+919000000101"));
@@ -236,7 +236,7 @@ try {
   await admin.locator("tr", { hasText: "+91 90••••••03" }).locator('button:has-text("Remove")').click();
   await admin.waitForLoadState("networkidle");
   await sleep(1000);
-  check("Admin can remove a moderator", sql(`select role from "User" where phone='+919000000103'`) === "USER");
+  check("Admin can remove a moderator", sql(`select role from "User" where ${byPhone(`+919000000103`)}`) === "USER");
 
   // ── Family co-managed account ────────────────────────────────────
   await groom.goto(`${BASE}/settings`);

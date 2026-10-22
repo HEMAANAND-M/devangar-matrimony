@@ -162,6 +162,21 @@ Create these WhatsApp message templates (category **Utility**, language **Englis
 
 Until WhatsApp is configured, messages are recorded with status "not configured" and visible to admins.
 
+## Upgrading to 1.8.0 (encrypted contact details)
+
+1.8.0 encrypts phone numbers and email addresses in the database. On an existing database, run these
+three commands in order (a new, empty database only needs the usual `npx prisma migrate deploy`):
+
+```sh
+npx prisma migrate deploy        # adds the hash columns; stops at the second migration with instructions
+npm run db:encrypt-contacts      # encrypts existing rows and fills the hashes (safe to re-run)
+npx prisma migrate resolve --rolled-back 20261022120100_contacts_hash_required
+npx prisma migrate deploy        # makes the hashes required
+```
+
+Set `DATA_ENCRYPTION_KEY` first (see `.env.example`) and keep it safe: without it the data cannot be read.
+Admin member search now matches phone numbers and emails exactly (the full number or address), not partially.
+
 ## Operations
 
 ### Scheduled jobs
