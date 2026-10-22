@@ -86,11 +86,15 @@ jobs:
         run: |
           # Stop whatever is listening on :3000 and wait until the port is free, so the health
           # check below cannot be answered by the old (two-factor off) server.
+          # `next start` serves from a child process titled "next-server", which survives killing the parent.
           pkill -f "next start" || true
-          kill $(lsof -t -i:3000) 2>/dev/null || true
+          pkill -f "next-server" || true
+          (command -v fuser >/dev/null && fuser -k 3000/tcp) || true
           for i in $(seq 1 30); do curl -sf http://localhost:3000/api/health >/dev/null || break; sleep 1; done
+          if curl -sf http://localhost:3000/api/health >/dev/null; then echo "Old server is still running on :3000"; exit 1; fi
           STAFF_2FA=on nohup sh e2e/serve.sh > server-2fa.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health && exit 0; sleep 2; done
+          # Healthy *and* this log says Ready, so the f-auth suite reads codes from the right server.
+          for i in $(seq 1 60); do curl -sf http://localhost:3000/api/health >/dev/null && grep -q "Ready" server-2fa.log && exit 0; sleep 2; done
           echo "Server did not become healthy"; cat server-2fa.log; exit 1
 
       - name: Run staff sign-in suite (f-auth)
